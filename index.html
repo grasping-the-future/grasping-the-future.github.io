@@ -1,0 +1,900 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Grasping the Future</title>
+<meta name="description" content="Grasping the Future: a generative model of joint 3D hand-object motion that forecasts, completes and conditions interactions, trained on hand-object trajectories reconstructed from internet videos.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  /* Sage & Parchment (ObjectForesight) + a dark olive stage for the media (ObjectForesight's own ink block) */
+  :root {
+    --bg: #f0ebdf; --bg-warm: #e8e1d0; --surface: #faf7ef; --kraft: #e9e1cf;
+    --ink: #29271f; --ink-2: #5c5547; --muted: #8b8270; --line: #ddd5c2; --line-strong: #c9bda4;
+    --accent: #6b8e23; --accent-hover: #567219; --accent-soft: #e8eecb; --ochre: #8a6a3c;
+    --stage: #1e2318; --stage-2: #262c1e; --stage-line: #343b2a; --stage-ink: #ecebdc; --stage-ink-2: #b3b79a; --stage-muted: #858a6c;
+    --obj: #ff942e; --right: #4dadfa; --left: #ed73b8; --given: #cfcabd;
+    --serif: 'Fraunces', Georgia, 'Times New Roman', serif;
+    --sans: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    --read: 860px; --wide: 1180px; --r: 16px;
+    --shadow-sm: 0 1px 2px rgba(41,39,31,.05), 0 1px 3px rgba(41,39,31,.06);
+    --shadow-md: 0 2px 6px rgba(41,39,31,.05), 0 10px 28px rgba(41,39,31,.09);
+    --shadow-lg: 0 4px 14px rgba(41,39,31,.07), 0 22px 48px rgba(41,39,31,.14);
+    --rail-clear: 0px;  /* how far from the left edge content must start to clear the section rail (set per width below) */
+    --gutter-l: max(16px, env(safe-area-inset-left, 0px), calc(var(--rail-clear) - max(0px, (100vw - var(--wide)) / 2))); --gutter-r: max(16px, env(safe-area-inset-right, 0px));
+  }
+  @media (min-width: 901px) { :root { --rail-clear: 86px; } }
+  @media (min-width: 1360px) { :root { --rail-clear: 162px; } }
+  * { box-sizing: border-box; }
+  html { font-size: 15px; scroll-behavior: smooth; scroll-padding-top: 16px; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+  body { margin: 0; font-family: var(--sans); line-height: 1.65; color: var(--ink); background: var(--bg); letter-spacing: -0.005em; text-rendering: optimizeLegibility; }
+  body::before { content: ""; position: fixed; inset: 0; z-index: 60; pointer-events: none; opacity: .5; mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.045'/%3E%3C/svg%3E"); }
+  ::selection { background: rgba(107,142,35,.3); }
+  a { color: inherit; }
+  img, video { max-width: 100%; }
+  button { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+  .wrap { max-width: var(--wide); margin: 0 auto; padding-left: var(--gutter-l); padding-right: var(--gutter-r); }
+  .read { max-width: var(--read); margin-left: auto; margin-right: auto; }
+
+  /* ---------- section rail: a quiet vertical index in the left margin (hairline ticks and small labels on a thin glass) ---------- */
+  .rail { position: fixed; z-index: 50; left: max(20px, env(safe-area-inset-left, 0px)); top: 50%; transform: translateY(-50%); padding: 8px 14px 8px 12px; border-radius: 14px;
+    background: rgba(248,244,235,.78); backdrop-filter: blur(14px) saturate(1.3); -webkit-backdrop-filter: blur(14px) saturate(1.3);
+    border: 1px solid rgba(41,39,31,.08); box-shadow: inset 0 1px 0 rgba(255,255,255,.55), 0 4px 18px rgba(41,39,31,.06);
+    transition: background-color .35s, border-color .35s, box-shadow .35s; }
+  .rail.dark { background: rgba(22,26,17,.7); border-color: rgba(236,235,220,.1); box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 4px 18px rgba(0,0,0,.2); }  /* over the dark stage */
+  .rail ol { list-style: none; margin: 0; padding: 0; }
+  .rail .lk { position: relative; display: flex; align-items: center; gap: 12px; height: 24px; color: #6b6454; text-decoration: none; white-space: nowrap; transition: color .2s; }
+  .rail .tick { position: relative; flex: none; width: 28px; height: 2px; }  /* an explicit width: WebKit leaves a flex-basis out of the glass's shrink-to-fit width */
+  .rail .tick::before { content: ""; position: absolute; left: 0; top: .5px; width: 12px; height: 1px; border-radius: 1px; background: currentColor; opacity: .6;
+    transition: width .32s cubic-bezier(.2,.7,.2,1), height .2s, top .2s, opacity .2s, background-color .2s; }
+  .rail .lab { font-size: .76rem; font-weight: 500; letter-spacing: .01em; }
+  .rail .lk:hover { color: var(--ink); }
+  .rail .lk:hover .tick::before { width: 18px; opacity: .9; }
+  .rail .lk.on { color: var(--ink); }
+  .rail .lk.on .lab { font-weight: 600; }
+  .rail .lk.on .tick::before { width: 28px; height: 2px; top: 0; opacity: 1; background: var(--accent); }
+  .rail.dark .lk { color: #b7bb9f; }
+  .rail.dark .lk:hover, .rail.dark .lk.on { color: var(--stage-ink); }
+  .rail.dark .lk.on .tick::before { background: #a9c75a; }
+  /* mid widths: ticks only (the hit area is the tick column); hovering or focusing a tick shows its label as a small tooltip */
+  @media (min-width: 901px) and (max-width: 1359px) {
+    .rail { padding: 8px 10px; }
+    .rail .lk { width: 34px; }
+    .rail .lab { position: absolute; left: 46px; top: 50%; padding: 2px 8px; border-radius: 6px; background: var(--ink); color: #f6f2e6; font-size: .72rem; font-weight: 500;
+      box-shadow: 0 2px 8px rgba(41,39,31,.18); pointer-events: none; opacity: 0; visibility: hidden; transform: translate(-4px, -50%);
+      transition: opacity .14s, transform .18s, visibility 0s linear .18s; }
+    .rail .lk.on .lab { font-weight: 600; }
+    .rail.dark .lab { background: var(--stage-ink); color: var(--stage); }
+    .rail .lk:hover .lab, .rail .lk:focus-visible .lab { opacity: 1; visibility: visible; transform: translate(0, -50%); transition: opacity .14s, transform .18s, visibility 0s; }
+  }
+  /* wide screens: labels always, the index parked just left of the content column */
+  @media (min-width: 1360px) { .rail { left: max(24px, env(safe-area-inset-left, 0px), calc((100vw - var(--wide)) / 2 - 150px)); } }
+  /* phones and tablets: a small pill names the current section and opens the index as a dropdown */
+  .toc-btn { display: none; position: fixed; z-index: 51; top: calc(12px + env(safe-area-inset-top, 0px)); right: max(12px, env(safe-area-inset-right, 0px));
+    align-items: center; gap: 6px; height: 30px; padding: 0 10px 0 12px; border-radius: 999px; cursor: pointer; font-size: .78rem; font-weight: 500; color: var(--ink-2);
+    border: 1px solid var(--line); background: rgba(250,247,239,.88); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: var(--shadow-sm);
+    transition: background-color .3s, color .3s, border-color .3s; }
+  .toc-btn svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; transition: transform .2s; }
+  .toc-btn[aria-expanded="true"] svg { transform: rotate(180deg); }
+  .toc-btn.dark { background: rgba(26,31,20,.8); color: var(--stage-ink); border-color: rgba(236,235,220,.14); }
+  @media (max-width: 900px) {
+    .toc-btn { display: inline-flex; }
+    .rail { left: auto; right: max(12px, env(safe-area-inset-right, 0px)); top: calc(48px + env(safe-area-inset-top, 0px)); transform: translateY(-4px);
+      min-width: 168px; padding: 6px; border-radius: 12px; background: rgba(250,247,239,.97); border: 1px solid var(--line); box-shadow: var(--shadow-md);
+      opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .15s, transform .18s, visibility 0s linear .18s; }
+    .rail.open { opacity: 1; visibility: visible; pointer-events: auto; transform: none; transition: opacity .15s, transform .18s, visibility 0s; }
+    .rail .lk { height: 34px; padding: 0 10px; gap: 10px; border-radius: 8px; }
+    .rail .lk.on { background: var(--accent-soft); }
+    .rail .tick { width: 16px; }
+    .rail .lk.on .tick::before { width: 16px; }
+    .rail .lab { font-size: .84rem; }
+  }
+  @media (prefers-reduced-motion: reduce) { .rail *, .rail, .toc-btn, .toc-btn * { transition: none !important; } .rail .tick::before { transition: none !important; } }
+
+
+  /* ---------- header ---------- */
+  header.hero { position: relative; text-align: center; padding: 64px 0 34px;
+    background: radial-gradient(70% 70% at 50% -10%, rgba(107,142,35,.16) 0%, rgba(107,142,35,0) 60%), linear-gradient(180deg, #f4efe3 0%, var(--bg) 100%); }
+  @media (prefers-reduced-motion: no-preference) {
+    @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+    header.hero .wrap > * { animation: rise .7s cubic-bezier(.22,.61,.36,1) both; }
+    header.hero .wrap > :nth-child(2) { animation-delay: .08s; } header.hero .wrap > :nth-child(3) { animation-delay: .16s; }
+    header.hero .wrap > :nth-child(4) { animation-delay: .22s; } header.hero .wrap > :nth-child(5) { animation-delay: .28s; }
+    header.hero .wrap > :nth-child(6) { animation-delay: .34s; } header.hero .wrap > :nth-child(7) { animation-delay: .4s; }
+  }
+  .emblem { width: min(250px, 62vw); height: auto; margin: 0 auto 6px; display: block; }
+  h1.title { font-family: var(--serif); font-optical-sizing: auto; font-weight: 600; font-size: clamp(2.3rem, 6.2vw, 4.1rem); letter-spacing: -.022em; line-height: 1.02; margin: 0 0 10px; text-wrap: balance; }
+  .subtitle { font-family: var(--serif); font-optical-sizing: auto; font-size: clamp(1.08rem, 2.3vw, 1.5rem); color: #45402f; margin: 0 0 20px; line-height: 1.35; text-wrap: balance; }
+  .authors { font-size: 1.16rem; font-weight: 500; line-height: 1.8; margin: 0 auto; max-width: 900px; text-wrap: balance; }
+  .authors .nw, .affils .nw { white-space: nowrap; }
+  .authors sup, .affils sup { font-size: .62em; color: var(--accent); margin-left: 1px; }
+  .affils { color: var(--ink-2); margin: 2px 0 20px; font-size: 1.02rem; }
+  .buttons { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 19px; background: var(--ink); color: #f4efe3; text-decoration: none; border-radius: 999px; font-size: .9rem; font-weight: 500;
+    box-shadow: 0 1px 2px rgba(41,39,31,.22); transition: transform .18s, background-color .18s, box-shadow .18s; }
+  .btn:hover { background: var(--accent); color: #fff; transform: translateY(-2px); box-shadow: 0 7px 18px rgba(107,142,35,.34); }
+  .btn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .btn svg.brand { width: 17px; height: 17px; fill: currentColor; stroke: none; }
+  .btn.soon { background: #b4a892; box-shadow: none; pointer-events: none; }
+
+  /* ---------- stage (the media band) ---------- */
+  .stage-band { scroll-margin-top: -16px; position: relative; background: radial-gradient(60% 90% at 50% 0%, rgba(107,142,35,.20), rgba(107,142,35,0) 62%), var(--stage); color: var(--stage-ink); padding: 26px 0 30px; }
+  .stage-top { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 14px; }
+  .seg { display: flex; gap: 3px; padding: 4px; background: rgba(255,255,255,.04); border: 1px solid var(--stage-line); border-radius: 999px; overflow-x: auto; scrollbar-width: none; max-width: 100%; }
+  .seg::-webkit-scrollbar { display: none; }
+  .seg button { border: 0; background: transparent; color: var(--stage-ink-2); padding: 7px 14px; border-radius: 999px; cursor: pointer; font-size: .86rem; display: flex; gap: 7px; align-items: baseline; white-space: nowrap; transition: background .15s, color .15s; }
+  .seg button small { font-family: var(--mono); font-size: .68rem; color: var(--stage-muted); }
+  .seg button:hover { color: #fff; }
+  .seg button[aria-pressed="true"] { background: #3a4329; color: #fff; }
+  .seg button[aria-pressed="true"] small { color: #c8d99a; }
+  .seg button:disabled { opacity: .38; cursor: default; }
+  .seg button:disabled:hover { color: var(--stage-ink-2); }
+
+  .screen { position: relative; border-radius: 18px; overflow: hidden; background: #0f120b; aspect-ratio: 16 / 9; box-shadow: 0 30px 80px rgba(0,0,0,.45); border: 1px solid var(--stage-line); max-width: 100%; }
+  .screen iframe { position: absolute; left: 0; top: 0; width: 100%; height: 100%; border: 0; display: block; background: #13160f; z-index: 1; transition: width .35s ease, height .35s ease, left .35s ease, top .35s ease, border-radius .35s ease; }
+  .vidwin { position: absolute; left: 14px; bottom: 14px; width: min(34%, 400px); aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,.18); box-shadow: 0 16px 44px rgba(0,0,0,.55); background: #0f120b; z-index: 2; transition: all .35s ease; }
+  .vidwin video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; background: #0f120b; }
+  .vidwin .vl { position: absolute; right: 8px; top: 8px; z-index: 3; font-family: var(--mono); font-size: .6rem; letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,.9); background: rgba(22,23,27,.72); padding: 3px 8px; border-radius: 6px; pointer-events: none; }
+  .screen.swapped .vidwin { left: 0; bottom: 0; width: 100%; height: 100%; aspect-ratio: auto; border-radius: 0; border: 0; box-shadow: none; z-index: 1; }
+  .screen.swapped .vidwin .vl { display: none; }
+  .screen.swapped iframe { left: 14px; top: calc(100% - 14px - min(34%, 400px) * 9 / 16); width: min(34%, 400px); height: calc(min(34%, 400px) * 9 / 16); border-radius: 12px; z-index: 3; box-shadow: 0 16px 44px rgba(0,0,0,.55); }
+  .seg .tool { border: 0; background: transparent; color: #c8d99a; padding: 7px 14px; border-radius: 999px; cursor: pointer; font-size: .86rem; white-space: nowrap; text-decoration: none; display: inline-flex; align-items: center; }
+  .seg .tool:hover { color: #fff; background: rgba(255,255,255,.06); }
+  .seg .tool[aria-pressed="true"] { background: #3a4329; color: #fff; }
+  @media (max-width: 760px) {
+    .screen iframe, .stage-top .tools, .stage-foot .kicker { display: none; }
+    .vidwin { left: 0; bottom: 0; width: 100%; height: 100%; aspect-ratio: auto; border-radius: 0; border: 0; box-shadow: none; }
+    .vidwin .vl { display: none; }
+  }
+  .stage-foot { display: flex; justify-content: space-between; gap: 10px 22px; flex-wrap: wrap; margin-top: 12px; font-size: .9rem; color: var(--stage-ink-2); }
+  .stage-foot .what b { color: var(--stage-ink); font-weight: 600; }
+  .stage-foot .kicker { font-family: var(--mono); font-size: .75rem; letter-spacing: .02em; color: var(--stage-muted); align-self: center; }
+
+  /* ---------- sections ---------- */
+  section.sec { padding: 64px 0 22px; }
+  section.band { background: var(--bg-warm); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding-bottom: 54px; margin-top: 40px; }
+  .eyebrow { font-size: .76rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); margin: 0 0 8px; }
+  h2.sh { font-family: var(--serif); font-optical-sizing: auto; font-weight: 600; font-size: clamp(1.7rem, 3.6vw, 2.5rem); letter-spacing: -.018em; line-height: 1.08; margin: 0 0 14px; text-wrap: balance; }
+  .sdesc { color: var(--ink-2); font-size: 1.04rem; line-height: 1.72; margin: 0 0 22px; max-width: 760px; text-wrap: pretty; }
+  .sdesc strong { color: var(--ink); font-weight: 600; }
+  .center { text-align: center; } .center .sdesc { margin-left: auto; margin-right: auto; }
+
+  /* intro + contributions */
+  .lead { font-size: 1.14rem; line-height: 1.72; color: #38342a; margin: 0 0 26px; text-wrap: pretty; }
+  .lead strong { font-weight: 600; color: var(--ink); }
+  .cards3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 22px 22px 22px; box-shadow: var(--shadow-sm); transition: transform .2s, box-shadow .2s; min-width: 0; }
+  .card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+  .card .num { font-family: var(--mono); font-size: 1.35rem; color: var(--accent-hover); letter-spacing: -.02em; display: block; margin-bottom: 6px; }
+  .card h3 { font-family: var(--serif); font-size: 1.16rem; font-weight: 600; letter-spacing: -.01em; margin: 0 0 6px; }
+  .card p { margin: 0; font-size: .93rem; line-height: 1.55; color: var(--ink-2); }
+
+  /* chips (light) */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; }
+  .chip { border: 1.5px solid var(--line); background: var(--surface); color: var(--ink-2); border-radius: 999px; padding: 7px 15px; font-size: .9rem; font-weight: 500; cursor: pointer; box-shadow: var(--shadow-sm); transition: all .18s; white-space: nowrap; }
+  .chip:hover { border-color: var(--accent); color: var(--accent-hover); }
+  .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* tasks */
+  .tasks { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 22px; align-items: start; }
+  .maskcard { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 20px 20px 18px; box-shadow: var(--shadow-sm); min-width: 0; }
+  .maskcard h3 { font-family: var(--serif); font-size: 1.35rem; font-weight: 600; margin: 0 0 4px; letter-spacing: -.01em; }
+  .maskcard .q { color: var(--ink-2); margin: 0 0 16px; font-size: .98rem; line-height: 1.55; min-height: 3.1em; }
+  .grid { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 7px 10px; align-items: center; }
+  .grid .lab { font-size: .8rem; color: var(--ink-2); display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+  .grid .lab i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: 0 0 auto; }
+  .cells { display: grid; grid-template-columns: repeat(50, minmax(0, 1fr)); gap: 1.5px; height: 20px; }
+  .cells span { border-radius: 2px; background: #e4ddc9; transition: background .35s ease; }
+  .cells span.o { background: #4a4536; }
+  .cells span.p { background: #cddb97; }
+  .axis { display: flex; justify-content: space-between; font-family: var(--mono); font-size: .68rem; color: var(--muted); margin: 6px 0 0 84px; }
+  .mlegend { display: flex; gap: 16px; flex-wrap: wrap; font-size: .8rem; color: var(--ink-2); margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .mlegend span { display: inline-flex; align-items: center; gap: 6px; }
+  .mlegend i { width: 14px; height: 10px; border-radius: 2px; display: inline-block; }
+  .gp { margin-top: 12px; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 10px; font-size: .86rem; }
+  .gp dt { font-family: var(--mono); font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding-top: 2px; }
+  .gp dd { margin: 0; color: var(--ink); }
+  .vidcard { border-radius: var(--r); overflow: hidden; background: #0f120b; box-shadow: var(--shadow-lg); border: 1px solid var(--line); min-width: 0; }
+  .vidcard video { display: block; width: 100%; height: auto; aspect-ratio: 1280 / 726; object-fit: contain; background: #0f120b; }
+
+  /* futures */
+  .duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+  .fig { margin: 0; min-width: 0; }
+  .fig figcaption { font-family: var(--serif); font-size: .9rem; color: #534d3f; margin-top: 10px; line-height: 1.5; text-align: center; text-wrap: pretty; }
+  .fig figcaption b { color: var(--accent); font-weight: 600; }
+  .stats { display: flex; flex-wrap: wrap; gap: 10px 34px; justify-content: center; margin: 26px 0 0; }
+  .stat { text-align: center; }
+  .stat .v { font-family: var(--mono); font-size: 1.55rem; letter-spacing: -.02em; color: var(--ink); display: block; }
+  .stat .k { font-size: .8rem; color: var(--muted); }
+
+  /* data lens */
+  .lens { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 22px; align-items: start; }
+  .lens .frame { position: relative; border-radius: var(--r); overflow: hidden; aspect-ratio: 3 / 2; background: #0f120b; box-shadow: var(--shadow-lg); border: 1px solid var(--line); }
+  .lens .frame video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .45s ease; }
+  .lens .frame video.on { opacity: 1; }
+  .lens .frame .tag { position: absolute; left: 12px; top: 12px; z-index: 2; font-family: var(--mono); font-size: .72rem; color: #fff; background: rgba(22,23,27,.78); padding: 4px 9px; border-radius: 7px; letter-spacing: .02em; }
+  .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .steps button { width: 100%; text-align: left; border: 1px solid transparent; background: transparent; border-radius: 12px; padding: 10px 12px; cursor: pointer; display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 2px 10px; transition: background .15s, border-color .15s; }
+  .steps button:hover { background: rgba(41,39,31,.04); }
+  .steps button[aria-pressed="true"] { background: var(--surface); border-color: var(--line); box-shadow: var(--shadow-sm); }
+  .steps .n { grid-row: span 2; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-family: var(--mono); font-size: .74rem; background: var(--kraft); color: var(--ink-2); }
+  .steps button[aria-pressed="true"] .n { background: var(--accent); color: #fff; }
+  .steps .t { font-weight: 600; font-size: .96rem; }
+  .steps .t small { font-family: var(--mono); font-weight: 400; font-size: .72rem; color: var(--accent-hover); margin-left: 6px; }
+  .steps .d { font-size: .86rem; color: var(--ink-2); line-height: 1.45; display: none; }
+  .steps button[aria-pressed="true"] .d { display: block; }
+  .funnel { display: flex; height: 34px; border-radius: 10px; overflow: hidden; margin: 30px 0 8px; font-size: .82rem; }
+  .funnel div { display: flex; align-items: center; justify-content: center; padding: 0 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .funnel .a { flex: 36; background: #e2dccb; color: var(--ink-2); }
+  .funnel .b { flex: 52; background: #d6cdb6; color: var(--ink-2); }
+  .funnel .c { flex: 12; background: var(--accent); color: #fff; font-weight: 600; min-width: 74px; }
+  .funnel .sm { display: none; }
+  @media (max-width: 760px) { .funnel .lg { display: none; } .funnel .sm { display: inline; } .funnel { font-size: .74rem; } }
+  .rejects { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+  .rej { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; min-width: 0; }
+  .rej .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: var(--line); }
+  .rej .pair img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; display: block; }
+  .rej p { margin: 0; padding: 9px 11px 11px; font-size: .84rem; line-height: 1.35; }
+  .rej p b { display: block; font-weight: 600; }
+  .rej p span { font-family: var(--mono); font-size: .72rem; color: var(--ochre); }
+
+  /* model */
+  .teaser-sec { padding-top: 40px; padding-bottom: 10px; }
+  .teaser { border-radius: var(--r); overflow: hidden; background: var(--stage); box-shadow: var(--shadow-lg); aspect-ratio: 16 / 9; max-width: 100%; }
+  .teaser video { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .tcap { text-align: center; color: var(--ink-2); font-size: .95rem; margin: 12px 0 0; }
+  /* model explainer (assets/js/model_anim.js) */
+  .mx { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow-md); padding: 18px 20px 14px; display: grid; gap: 8px; }
+  .mx-cap { display: flex; gap: 14px; align-items: baseline; min-height: 3.1em; }
+  .mx-n { font-family: var(--mono); font-size: .74rem; color: var(--accent-hover); background: var(--accent-soft); border-radius: 999px; padding: 3px 9px; flex: 0 0 auto; }
+  .mx-t { font-family: var(--serif); font-size: 1.16rem; line-height: 1.4; color: var(--ink); text-wrap: balance; }
+  .mx-t b { color: var(--accent-hover); font-weight: 600; }
+  .mx-svg { overflow-x: auto; }
+  .mx-svg svg { display: block; width: 100%; min-width: 640px; height: auto; }
+  .mx-svg text { font-family: var(--sans); }
+  .mx-lab { font-family: var(--mono) !important; font-size: 11px; fill: var(--muted); letter-spacing: .02em; }
+  .mx-row { font-size: 14px; fill: var(--ink-2); font-weight: 500; }
+  .mx-mt { font-family: var(--serif) !important; font-size: 17px; fill: #ecebdc; font-weight: 600; }
+  .mx-ms { font-family: var(--mono) !important; font-size: 11px; fill: #b3b79a; }
+  .mx-step { font-family: var(--mono) !important; font-size: 12px; fill: var(--accent-hover); font-weight: 500; }
+  .mx-cell { fill: #efe9db; stroke: #e2dac8; stroke-width: 1; }
+  .mx-cell.mx-given { fill: #3d3b30; stroke: #3d3b30; }
+  .mx-cell.mx-masked { fill: var(--accent-soft); stroke: #cbd89f; }
+  .mx-arrow { fill: none; stroke: var(--ink-2); stroke-width: 1.4; transition: opacity .2s; }
+  .mx-bar { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; padding-top: 4px; }
+  .mx-play { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line-strong); background: var(--surface); cursor: pointer; display: grid; place-items: center; color: var(--ink); }
+  .mx-play svg { width: 11px; height: 11px; fill: currentColor; }
+  .mx-dots { display: flex; gap: 6px; }
+  .mx-dots button { width: 26px; height: 8px; border-radius: 4px; border: 0; background: var(--line); cursor: pointer; padding: 0; }
+  .mx-dots button[aria-pressed="true"] { background: var(--accent); }
+  .mx-tasks { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+  .mx-tasks button { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 4px 10px; font-size: .8rem; color: var(--ink-2); cursor: pointer; }
+  .mx-tasks button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent-hover); background: var(--accent-soft); }
+  .paperfig { margin-top: 14px; }
+  .paperfig summary { cursor: pointer; font-family: var(--mono); font-size: .78rem; color: var(--muted); letter-spacing: .02em; }
+  .paperfig .modelfig { margin-top: 10px; }
+  @media (max-width: 760px) { .mx { padding: 14px; } .mx-t { font-size: 1.02rem; } .mx-tasks { margin-left: 0; } }
+  .modelfig { background: #fff; border: 1px solid var(--line); border-radius: var(--r); padding: 14px; box-shadow: var(--shadow-md); overflow-x: auto; }
+  .modelfig img { display: block; width: 100%; min-width: 640px; height: auto; }
+  .points { list-style: none; padding: 0; margin: 22px 0 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .points li { border-top: 2px solid var(--accent); padding-top: 10px; color: var(--ink-2); font-size: .95rem; line-height: 1.55; min-width: 0; }
+  .points li strong { display: block; color: var(--ink); font-family: var(--serif); font-size: 1.08rem; margin-bottom: 4px; }
+
+  /* charts */
+  .charts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
+  .chartcard { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 20px 20px 16px; box-shadow: var(--shadow-sm); min-width: 0; }
+  .chartcard h3 { font-family: var(--serif); font-size: 1.18rem; font-weight: 600; margin: 0 0 2px; }
+  .chartcard .sub { font-size: .84rem; color: var(--muted); margin: 0 0 14px; }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .tabs button { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 4px 12px; font-size: .8rem; color: var(--ink-2); cursor: pointer; }
+  .tabs button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #f4efe3; }
+  .bars { display: grid; gap: 8px; }
+  .brow { display: grid; grid-template-columns: 158px minmax(0, 1fr) 56px; gap: 10px; align-items: center; font-size: .86rem; }
+  .brow .nm { color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .brow.ours .nm { color: var(--ink); font-weight: 600; }
+  .brow .nm .nn { font-family: var(--mono); font-size: .72rem; color: var(--muted); font-weight: 400; margin-left: 2px; }
+  .brow .track { display: block; height: 14px; background: #ece5d4; border-radius: 4px; overflow: hidden; }
+  .brow .fill { display: block; height: 100%; width: 0; background: var(--line-strong); border-radius: 4px; transition: width .9s cubic-bezier(.22,.61,.36,1); }
+  .brow.ours .fill { background: var(--accent); }
+  .brow .val { font-family: var(--mono); font-size: .8rem; text-align: right; color: var(--ink-2); }
+  .brow.ours .val { color: var(--accent-hover); font-weight: 500; }
+  .pairs { display: grid; gap: 12px; }
+  .prow { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 4px 10px; align-items: center; font-size: .84rem; }
+  .prow .nm { color: var(--ink-2); grid-row: span 2; line-height: 1.3; }
+  .prow .line { display: grid; grid-template-columns: minmax(0, 1fr) 82px; gap: 8px; align-items: center; }
+  .prow .track { display: block; height: 9px; background: #ece5d4; border-radius: 3px; overflow: hidden; }
+  .prow .fill { display: block; height: 100%; width: 0; border-radius: 3px; transition: width .9s cubic-bezier(.22,.61,.36,1); background: var(--line-strong); }
+  .prow .line.ours .fill { background: var(--accent); }
+  .prow .val { font-family: var(--mono); font-size: .74rem; color: var(--ink-2); white-space: nowrap; }
+  .prow .line.ours .val { color: var(--accent-hover); }
+  .keyrow { display: flex; gap: 16px; font-size: .78rem; color: var(--muted); margin: 14px 0 0; flex-wrap: wrap; }
+  .keyrow i { display: inline-block; width: 12px; height: 9px; border-radius: 2px; margin-right: 6px; vertical-align: 0; }
+
+  /* robot */
+  .robot { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 8fr); gap: 16px; align-items: stretch; }
+  .robot .inp { margin: 0; position: relative; border-radius: var(--r); overflow: hidden; box-shadow: var(--shadow-md); border: 1px solid var(--line); background: #0f120b; min-width: 0; min-height: 180px; }
+  .robot .inp img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+  .robot .inp figcaption { position: absolute; left: 10px; top: 10px; font-family: var(--mono); font-size: .6rem; letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,.92); background: rgba(22,23,27,.72); padding: 3px 8px; border-radius: 6px; }
+  .robot .rvid { border-radius: var(--r); overflow: hidden; background: var(--stage); box-shadow: var(--shadow-lg); border: 1px solid var(--line); min-width: 0; }
+  .robot .rvid video { display: block; width: 100%; height: auto; aspect-ratio: 1284 / 480; object-fit: contain; background: var(--stage); }
+  .rcap { font-family: var(--serif); font-size: .92rem; color: #534d3f; margin: 10px 0 0; text-wrap: pretty; }
+  .rcap b { color: var(--accent); font-weight: 600; }
+  .rates { display: grid; gap: 10px; margin-top: 20px; max-width: 760px; }
+
+  /* gallery */
+  .gtools { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .gtools .chips { margin: 0; }
+  .gseg { display: flex; gap: 3px; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); }
+  .gseg[hidden] { display: none; }
+  .gseg button { border: 0; background: transparent; padding: 6px 13px; border-radius: 999px; font-size: .84rem; color: var(--ink-2); cursor: pointer; }
+  .gseg button[aria-pressed="true"] { background: var(--ink); color: #f4efe3; }
+  .ggrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+  .gitem { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; box-shadow: var(--shadow-sm); transition: transform .2s, box-shadow .2s; min-width: 0; }
+  .gitem:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+  .gitem video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: contain; background: #0f120b; }
+  .gitem .cap { background: var(--kraft); padding: 10px 14px; font-size: .88rem; color: var(--ink-2); display: flex; justify-content: space-between; gap: 10px; }
+  .gitem .cap b { color: var(--ink); font-weight: 600; }
+  .gitem .cap .meta { font-family: var(--mono); font-size: .72rem; color: var(--muted); white-space: nowrap; align-self: center; }
+
+  /* abstract, bibtex, footer */
+  .abstract { background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: var(--r); padding: 26px 30px; box-shadow: var(--shadow-sm); color: #413c30; line-height: 1.8; margin: 0; text-wrap: pretty; }
+  .abstract::first-letter { font-family: var(--serif); font-weight: 600; font-size: 3.1rem; line-height: .8; float: left; margin: .06em .1em 0 0; color: var(--accent); }
+  .bib { background: #242a1a; border: 1px solid #323a27; border-radius: var(--r); overflow: hidden; color: #e9ebd6; box-shadow: var(--shadow-md); }
+  .bib .bbar { display: flex; justify-content: space-between; align-items: center; padding: 9px 14px 9px 20px; background: rgba(255,255,255,.035); border-bottom: 1px solid #323a27; }
+  .bib .bbar span { font-family: var(--mono); font-size: .74rem; color: #99a07c; }
+  .bib button { border: 1px solid #3c4530; background: rgba(255,255,255,.05); color: #e3e6cf; border-radius: 8px; padding: 6px 13px; font-size: .76rem; font-weight: 600; cursor: pointer; }
+  .bib button:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .bib pre { margin: 0; padding: 20px 24px; overflow-x: auto; font-family: var(--mono); font-size: .78rem; line-height: 1.75; white-space: pre; }
+  .bib .k { color: #b6cf72; }
+  footer { text-align: center; padding: 34px 0; background: var(--bg-warm); border-top: 1px solid var(--line); color: var(--muted); font-size: .86rem; margin-top: 44px; }
+  footer a { color: var(--accent); text-decoration: none; }
+
+  @media (max-width: 900px) {
+    .cards3, .points { grid-template-columns: 1fr; }
+    .tasks, .lens, .charts, .robot { grid-template-columns: 1fr; }
+    .rejects { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .robot .inp { min-height: 220px; }
+  }
+  @media (max-width: 640px) {
+    html { font-size: 14.5px; }
+    .duo, .ggrid { grid-template-columns: 1fr; }
+    .brow { grid-template-columns: 124px minmax(0, 1fr) 50px; }
+    .prow { grid-template-columns: 1fr; }
+    .prow .nm { grid-row: auto; }
+
+    .grid { grid-template-columns: 62px minmax(0, 1fr); }
+    .axis { margin-left: 72px; }
+    .stage-foot { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="rail" id="nav" aria-label="Sections">
+  <ol id="navlinks">
+    <li><a class="lk" href="#watch"><span class="tick"></span><span class="lab">Watch</span></a></li>
+    <li><a class="lk" href="#teaser"><span class="tick"></span><span class="lab">Teaser</span></a></li>
+    <li><a class="lk" href="#overview"><span class="tick"></span><span class="lab">Overview</span></a></li>
+    <li><a class="lk" href="#tasks"><span class="tick"></span><span class="lab">Tasks</span></a></li>
+    <li><a class="lk" href="#futures"><span class="tick"></span><span class="lab">Futures</span></a></li>
+    <li><a class="lk" href="#data"><span class="tick"></span><span class="lab">Data</span></a></li>
+    <li><a class="lk" href="#model"><span class="tick"></span><span class="lab">Model</span></a></li>
+    <li><a class="lk" href="#results"><span class="tick"></span><span class="lab">Results</span></a></li>
+    <li><a class="lk" href="#robot"><span class="tick"></span><span class="lab">Robot</span></a></li>
+    <li><a class="lk" href="#gallery"><span class="tick"></span><span class="lab">Gallery</span></a></li>
+    <li><a class="lk" href="#cite"><span class="tick"></span><span class="lab">Cite</span></a></li>
+  </ol>
+</nav>
+<button class="toc-btn" id="tocBtn" aria-expanded="false" aria-controls="nav"><span id="tocCur">Sections</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <img class="emblem" src="assets/fig/emblem.webp" alt="A hand holding a carton, with its predicted future poses fading ahead of it">
+    <h1 class="title">Grasping the Future</h1>
+    <p class="subtitle">Joint 3D Hand&ndash;Object Forecasting from Internet Videos</p>
+    <p class="authors"><span class="nw">Rustin Soraki<sup>1</sup>,</span> <span class="nw">Matthew Wallingford<sup>1</sup>,</span> <span class="nw">Ryan Aby<sup>1</sup>,</span> <span class="nw">Brandon Chee<sup>1</sup>,</span> <span class="nw">Jason Ren<sup>2</sup>,</span> <span class="nw">Ali Farhadi<sup>1*</sup>,</span> <span class="nw">Homanga Bharadhwaj<sup>3*</sup>,</span> <span class="nw">Roozbeh Mottaghi<sup>4*</sup></span></p>
+    <p class="affils"><span class="nw"><sup>1</sup>University of Washington</span> &nbsp; <span class="nw"><sup>2</sup>University of North Carolina at Chapel Hill</span> &nbsp; <span class="nw"><sup>3</sup>Johns Hopkins University</span> &nbsp; <span class="nw"><sup>4</sup>Skild AI</span> &nbsp;&nbsp; <span class="nw"><sup>*</sup>Equal supervision</span></p>
+    <div class="buttons">
+      <a class="btn" href="paper.pdf" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>Paper</a>
+      <a class="btn" href="https://arxiv.org/abs/2611.12879" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>arXiv</a>
+      <a class="btn soon" aria-disabled="true" tabindex="-1"><svg viewBox="0 0 24 24"><path d="m8 7-5 5 5 5M16 7l5 5-5 5"/></svg>Code (soon)</a>
+      <a class="btn soon" aria-disabled="true" tabindex="-1"><svg class="brand" viewBox="0 0 24 24" aria-hidden="true"><path d="M1.4446 11.5059c0 1.1021.1673 2.1585.4847 3.1563-.0378-.0028-.0691-.0058-.1058-.0058-.4209 0-.8015.16-1.0704.4512-.3454.3737-.4984.8335-.4316 1.293a1.576 1.576 0 0 0 .2148.5978c-.2319.1864-.4018.4456-.4844.7578-.0646.2448-.131.7543.2149 1.2794a1.4552 1.4552 0 0 0-.0625.1055c-.208.3923-.2207.8372-.0371 1.25.2783.6258.9696 1.1175 2.3126 1.6467.8356.3292 1.5988.5411 1.6056.543 1.1046.2847 2.104.4277 2.969.4277 1.4173 0 2.4754-.3849 3.1525-1.1446 1.538.2651 2.791.1403 3.592.006.6773.7555 1.7332 1.1387 3.1467 1.1387.8649 0 1.8643-.143 2.969-.4278.0068-.0019.77-.2138 1.6056-.543 1.343-.5292 2.0343-1.0208 2.3126-1.6466.1836-.4129.171-.8577-.037-1.25a1.4685 1.4685 0 0 0-.0626-.1056c.346-.525.2795-1.0346.2149-1.2793-.0826-.3122-.2525-.5714-.4844-.7579.11-.1816.1831-.3788.2148-.5977.0669-.4595-.0862-.9193-.4316-1.293-.2688-.2913-.6495-.4513-1.0704-.4513-.0209 0-.0376.0008-.0588.0018.3162-.9966.4846-2.0518.4846-3.1523 0-5.807-4.7362-10.5144-10.5789-10.5144-5.8426 0-10.5788 4.7073-10.5788 10.5144Zm10.5788-9.4831c5.2727 0 9.5476 4.246 9.5476 9.483a9.4201 9.4201 0 0 1-.2696 2.2365c-.0039-.0047-.0079-.011-.0117-.0156-.274-.3255-.6679-.5059-1.1075-.5059-.352 0-.714.1155-1.0763.3438-.2403.1517-.5058.422-.7793.7598-.2534-.3492-.608-.5832-1.0137-.6465a1.5174 1.5174 0 0 0-.2344-.0176c-.9263 0-1.4828.7993-1.6935 1.5177-.1046.2426-.6065 1.3482-1.3614 2.0978-1.1681 1.1601-1.4458 2.3534-.8396 3.6382-.843.1029-1.5836.0927-2.365-.006.5906-1.212.3626-2.4388-.8426-3.6322-.755-.7496-1.2568-1.8552-1.3614-2.0978-.2107-.7184-.7673-1.5177-1.6935-1.5177-.078 0-.1568.0054-.2344.0176-.4057.0633-.7604.2973-1.0137.6465-.2735-.3379-.539-.6081-.7794-.7598-.3622-.2283-.7243-.3438-1.0762-.3438-.4266 0-.8094.171-1.0821.4786a9.4208 9.4208 0 0 1-.2598-2.1936c0-5.237 4.2749-9.483 9.5475-9.483zM8.6443 7.0036c-.4838.0043-.9503.2667-1.1934.7227-.3536.6633-.1006 1.4873.5645 1.84.351.1862.4883-.5261.836-.6485.3107-.1095.841.399 1.0078.086.3536-.6634.1025-1.4874-.5625-1.84a1.3659 1.3659 0 0 0-.6524-.1602Zm6.8403 0c-.2199-.002-.4426.05-.6504.1602-.665.3526-.9181 1.1766-.5645 1.84.1669.313.6971-.1955 1.0079-.086.3476.1224.4867.8347.838.6485.6649-.3527.916-1.1767.5624-1.84-.243-.456-.7096-.7184-1.1934-.7227Zm-9.7565 1.418a.8768.8768 0 0 0-.877.877c0 .4846.3925.877.877.877a.8768.8768 0 0 0 .877-.877.8768.8768 0 0 0-.877-.877zm12.6434 0c-.4845 0-.879.3925-.879.877 0 .4846.3945.877.879.877a.8768.8768 0 0 0 .877-.877.8768.8768 0 0 0-.877-.877zM8.7927 11.459c-.179-.003-.2793.1107-.2793.416 0 .8097.3874 2.125 1.4279 2.924.207-.7123 1.3453-1.2832 1.5079-1.2012.2315.1167.2191.4417.6074.7266.3884-.285.374-.6098.6056-.7266.1627-.082 1.3009.4889 1.5079 1.2012 1.0404-.799 1.4278-2.1144 1.4278-2.924 0-1.2212-1.583.6402-3.5413.6485-1.4686-.0061-2.7266-1.0558-3.2639-1.0645zM4.312 14.4768c.5792.365 1.6964 2.2751 2.1056 3.0177.1371.2488.371.3536.582.3536.4188 0 .7465-.4138.0391-.9395-1.0636-.791-.6914-2.0846-.1836-2.1642a.4302.4302 0 0 1 .0664-.004c.4616 0 .666.7892.666.7892s.5959 1.4898 1.6213 2.508c.942.9356 1.062 1.703.4961 2.6661-.0164-.004-.0159.0236-.1484.2149-.1853.2673-.4322.4688-.7188.6152-.5062.2269-1.1397.2696-1.7833.2696-1.037 0-2.1017-.1824-2.6975-.336-.0293-.0075-3.6505-.9567-3.1916-1.8224.0771-.1454.2033-.2031.3633-.2031.6463 0 1.823.9551 2.3283.9551.113 0 .196-.0865.2285-.2031.2249-.8045-3.2787-1.0522-2.9846-2.1642.0519-.1967.193-.2757.3907-.2754.854 0 2.7704 1.4923 3.172 1.4923.0307 0 .0525-.0085.0645-.0274.2012-.3227.1096-.5865-1.3087-1.4395-1.4182-.8533-2.4315-1.329-1.8653-1.9416.0651-.0707.1574-.1015.2695-.1015.8611.0002 2.8948 1.84 2.8948 1.84s.5487.5683.8809.5683c.0762 0 .1416-.0315.1855-.1054.2355-.3946-2.1858-2.2183-2.3224-2.971-.0926-.51.0641-.7676.3555-.7676-.0006.008.1701-.0285.4942.1759zm16.2257.5918c-.1366.7526-2.5579 2.5764-2.3224 2.9709.044.074.1092.1055.1855.1055.3321 0 .881-.5684.881-.5684s2.0336-1.8397 2.8947-1.84c.1121 0 .2044.0308.2695.1016.5662.6125-.447 1.0882-1.8653 1.9415-1.4183.853-1.51 1.1168-1.3087 1.4396.012.0188.0337.0273.0644.0273.4016 0 2.3181-1.4923 3.1721-1.4923.1977-.0002.3388.0787.3907.2754.294 1.112-3.2095 1.3597-2.9846 2.1642.0325.1166.1156.2032.2285.2032.5054 0 1.682-.9552 2.3283-.9552.16 0 .2862.0577.3633.2032.459.8656-3.1623 1.8149-3.1916 1.8224-.5958.1535-1.6605.336-2.6975.336-.6351 0-1.261-.0409-1.7638-.2599-.2949-.1472-.5488-.3516-.7383-.625-.0411-.0682-.1026-.1476-.1426-.205-.5726-.9679-.455-1.7371.4903-2.676 1.0254-1.0182 1.6212-2.508 1.6212-2.508s.2044-.7891.666-.7891a.4318.4318 0 0 1 .0665.0039c.5078.0796.88 1.3732-.1836 2.1642-.7074.5257-.3797.9395.039.9395.211 0 .445-.1047.5821-.3535.4092-.7426 1.5264-2.6527 2.1056-3.0178.5588-.3524.99-.1816.8497.5918z"/></svg>Model (soon)</a>
+      <a class="btn soon" aria-disabled="true" tabindex="-1"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>Data (soon)</a>
+    </div>
+  </div>
+</header>
+
+<section class="stage-band" id="watch" aria-label="Watch the model forecast">
+  <div class="wrap">
+    <div class="stage-top">
+      <div class="seg" id="heroClips" role="group" aria-label="Clip"></div>
+      <div class="seg" id="heroMode" role="group" aria-label="Futures">
+        <button aria-pressed="true" data-mode="ghost">One future</button>
+        <button aria-pressed="false" data-mode="seq">Three futures</button>
+      </div>
+      <div class="seg tools" role="group" aria-label="Views">
+        <button class="tool" id="swapBtn" aria-pressed="false" title="Swap the 3D view and the camera video">&#x21C4; Swap</button>
+        <a class="tool" href="watch3d.html" title="The 3D stage on its own page">Full screen &#x2197;</a>
+      </div>
+    </div>
+    <div class="screen" id="screen">
+      <iframe id="stage3d" title="The prediction in 3D. Drag to look around." data-src="watch3d.html?embed=1&amp;clip=action100m_future_prediction_spoon"></iframe>
+      <div class="vidwin" id="vidwin"><video id="heroVideo" muted playsinline autoplay preload="auto"></video><span class="vl">Camera view</span></div>
+    </div>
+    <div class="stage-foot">
+      <div class="what" id="heroWhat"></div>
+      <div class="kicker">drag to look around &middot; the small video is the camera's view of the same moment</div>
+    </div>
+  </div>
+</section>
+
+<section class="sec teaser-sec" id="teaser">
+  <div class="wrap">
+    <div class="teaser"><video id="teaserVideo" controls muted playsinline preload="none" poster="assets/teaser/teaser_poster.jpg" src="assets/teaser/teaser_1280.mp4"></video></div>
+    <p class="tcap">Forty seconds: forecasts in 3D, three possible futures, one clip asked seven questions, the data, and robot hands following a forecast.</p>
+  </div>
+</section>
+
+<section class="sec" id="overview">
+  <div class="wrap read">
+    <p class="lead"><strong><em>Grasping-the-Future</em></strong> predicts how hands and objects move together in 3D. Show it half a second of someone handling an object, and it predicts the next four and a half seconds: where the wrists go, how the fingers bend, and how the object moves and turns. The same model answers other questions too: how the object moves given the hands, how the hands move given the object, how to reach a goal, and what happened in a gap. It learns from 62,562 interactions we rebuilt in 3D from internet videos, plus eight motion-capture datasets.</p>
+    <p class="eyebrow center">What is new</p>
+    <div class="cards3">
+      <div class="card"><span class="num">7 tasks</span><h3>One model</h3><p>Every task is the same problem: <strong>fill in the missing parts</strong> of one hand&ndash;object motion. One model, trained once, does all seven.</p></div>
+      <div class="card"><span class="num">62,562</span><h3>3D from internet video</h3><p>We turn everyday internet clips into 3D hand and object motion, and keep only the <strong>12%</strong> that pass our checks.</p></div>
+      <div class="card"><span class="num">73.8%</span><h3>Forecasts robots can follow</h3><p>A simulated robot hand carries out <strong>73.8%</strong> of our forecasts, moving the object along the predicted path.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="abstract" style="padding-top:34px">
+  <div class="wrap read">
+    <h2 class="sh center">Abstract</h2>
+    <p class="abstract">To interact with an object, we need to anticipate both how it will move and how our hands should move with it. Human videos capture these relationships across everyday activities, offering a natural source for learning to predict future interactions. Learning from them requires recovering motion from completed interactions and using it to anticipate what could happen next. We present <em>Grasping-the-Future</em>, a unified generative model of joint 3D hand-object motion, including wrist motion, finger articulation, and object position and orientation. Through masked spatiotemporal completion and flow matching, we train a single model for several prediction tasks: forecasting future interactions, predicting hand motion given object motion or vice versa, generating both trajectories toward a desired final object pose, and completing partially observed interactions. We explicitly model hand-object relations and incorporate contact constraints to help preserve grasp relationships during motion. To obtain 3D supervision from internet videos, we develop a scalable pipeline that combines pretrained perception models with joint geometric optimization to reconstruct completed interactions. We combine these recovered trajectories with annotated interaction datasets as training data for all tasks. We demonstrate strong performance across all tasks, outperforming released forecasters on datasets with 3D annotations. Moreover, we show geometric and physical plausibility of the predicted trajectories by retargeting them to a robotic embodiment.</p>
+  </div>
+</section>
+
+<section class="sec" id="tasks">
+  <div class="wrap">
+    <p class="eyebrow">One model</p>
+    <h2 class="sh">One clip. Seven questions.</h2>
+    <p class="sdesc">Each task gives the model different parts of an interaction and asks for the rest. All seven videos use the <strong>same internet clip</strong>; only the question changes.</p>
+    <div class="chips" id="taskChips" role="group" aria-label="Task"></div>
+    <div class="tasks">
+      <div class="maskcard">
+        <h3 id="taskName"></h3>
+        <p class="q" id="taskQ"></p>
+        <div class="grid" id="maskGrid"></div>
+        <div class="axis"><span>0 s</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5 s</span></div>
+        <div class="mlegend"><span><i style="background:#4a4536"></i>given</span><span><i style="background:#cddb97"></i>predicted</span></div>
+        <dl class="gp"><dt>Given</dt><dd id="taskGiven"></dd><dt>Predicted</dt><dd id="taskPred"></dd></dl>
+      </div>
+      <div class="vidcard"><video id="taskVideo" muted loop playsinline preload="metadata"></video></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec band" id="futures">
+  <div class="wrap">
+    <div class="center">
+      <p class="eyebrow">Many futures</p>
+      <h2 class="sh">The same start, many futures.</h2>
+      <p class="sdesc">Half a second rarely decides what happens next, so the model draws 20 futures for each clip. Each video plays three of them in turn, at twice real speed. Each finished future leaves its last object pose behind as an outline.</p>
+    </div>
+    <div class="duo">
+      <figure class="fig"><div class="vidcard"><video data-auto muted loop playsinline preload="none" poster="assets/video/freeze_seq_v2/action100m_future_prediction_glassbowl.jpg" src="assets/video/freeze_seq_v2/action100m_future_prediction_glassbowl.mp4"></video></div>
+        <figcaption><b>Internet video.</b> Holding up a glass bowl.</figcaption></figure>
+      <figure class="fig"><div class="vidcard"><video data-auto muted loop playsinline preload="none" poster="assets/video/freeze_seq_v2/mocap_future_prediction_093.jpg" src="assets/video/freeze_seq_v2/mocap_future_prediction_093.mp4"></video></div>
+        <figcaption><b>Motion capture (TACO).</b> Skimming a plate with a spoon.</figcaption></figure>
+    </div>
+    <div class="stats">
+      <div class="stat"><span class="v">20</span><span class="k">futures per clip</span></div>
+      <div class="stat"><span class="v">102.8 mm</span><span class="k">object error after 4.5 s, best of 20</span></div>
+      <div class="stat"><span class="v">78%</span><span class="k">of clips where what really happened lies within the 20</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="data">
+  <div class="wrap">
+    <p class="eyebrow">Data</p>
+    <h2 class="sh">From internet video to 3D.</h2>
+    <p class="sdesc">Internet videos have no 3D labels, so we make them. Off-the-shelf models estimate the hands, the object and the depth in each frame. An optimization joins them into one consistent 3D motion. Checks throw out every clip that doesn't hold up. On egocentric video, the result is as accurate as HOPformer, a recent model built for egocentric images; from third-person views, its hand error is about nine times lower and its object pose error about a quarter lower.</p>
+    <div class="lens">
+      <div class="frame" id="lensFrame"><span class="tag" id="lensTag"></span></div>
+      <ol class="steps" id="lensSteps"></ol>
+    </div>
+    <div class="funnel" aria-label="Fate of candidate clips"><div class="a"><span class="lg">36% fail action validation</span><span class="sm">36% no action</span></div><div class="b"><span class="lg">52% fail in extraction or at a quality gate</span><span class="sm">52% fail a gate</span></div><div class="c">12% kept</div></div>
+    <div class="rejects" id="rejects"></div>
+    <div class="stats">
+      <div class="stat"><span class="v">62,562</span><span class="k">trajectories from internet video</span></div>
+      <div class="stat"><span class="v">109,346</span><span class="k">five-second training windows</span></div>
+      <div class="stat"><span class="v">+8</span><span class="k">motion-capture datasets</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec band" id="model">
+  <div class="wrap">
+    <p class="eyebrow">Model</p>
+    <h2 class="sh">Fill in the grid.</h2>
+    <p class="sdesc">The model sees an interaction as a grid. It keeps the cells it is given, starts the rest from noise, and turns the noise into motion in ten steps.</p>
+    <div class="mx" id="mx"></div>
+    <details class="paperfig"><summary>The figure from the paper</summary><div class="modelfig"><img src="assets/fig/manipflow_model.webp" alt="Model overview: token grid, DiT backbone with alternating attention, sampled futures, training masks and losses" loading="lazy"></div></details>
+    <ul class="points">
+      <li><strong>One grid for every task</strong>Each moment has five tokens: the two hands, the object, and where each hand sits relative to the object. A task is just a choice of which cells to give.</li>
+      <li><strong>Looking along time and across hands</strong>Twelve transformer blocks look along time, across the hands and the object, and over the whole grid. They also see the scene and the shapes of the object and hands.</li>
+      <li><strong>Grasps that hold</strong>Training also checks the finished motion: the hand has to stay attached to the object, and whole sets of futures are scored together.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="sec" id="results">
+  <div class="wrap">
+    <p class="eyebrow">Results</p>
+    <h2 class="sh">Closer to what actually happened.</h2>
+    <p class="sdesc">Errors in millimetres on our benchmark of 331 five-second windows: 256 from motion capture and 75 from internet video. Each method runs on its own inputs, and every prediction is scored with the same code.</p>
+    <div class="charts">
+      <div class="chartcard">
+        <h3>Compared with released forecasters</h3>
+        <p class="sub">Final position after 4.5 s, mm, lower is better</p>
+        <div class="tabs" id="extTabs"></div>
+        <div class="bars" id="extBars"></div>
+        <p class="sub" style="margin:14px 0 0">A method that draws several futures (&times;N) is scored by the energy score of all of them: their average error minus half their average distance from each other. It is lowest when the futures are both close to what happened and as spread out as the real possibilities; for a method that makes one prediction it is simply its error. Ours draws 20 futures and uses estimated depth here.</p>
+      </div>
+      <div class="chartcard">
+        <h3>Internet video helps</h3>
+        <p class="sub">One sample, final-position error, mm: trained on motion capture only versus with internet video</p>
+        <div class="pairs" id="dataPairs"></div>
+        <div class="keyrow"><span><i style="background:var(--line-strong)"></i>motion capture only</span><span><i style="background:var(--accent)"></i>with internet video</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec band" id="robot">
+  <div class="wrap">
+    <p class="eyebrow">Robots</p>
+    <h2 class="sh">From forecast to robot hands.</h2>
+    <p class="sdesc">We hand each forecast to a simulated robot hand and check whether it moves the object along the predicted path. Copying the wrist and fingertips rarely works. Physics-aware retargeting with SPIDER works for most forecasts.</p>
+    <div class="chips" id="robotChips" role="group" aria-label="Clip"></div>
+    <div class="robot">
+      <figure class="inp"><img id="robotObs" alt="The last frame the model observed"><figcaption>Last observed frame</figcaption></figure>
+      <div class="rvid"><video id="robotVideo" muted loop playsinline preload="metadata"></video></div>
+    </div>
+    <p class="rcap" id="robotCap"></p>
+    <div class="rates" id="robotRates"></div>
+  </div>
+</section>
+
+<section class="sec" id="gallery">
+  <div class="wrap">
+    <p class="eyebrow">Gallery</p>
+    <h2 class="sh">More clips.</h2>
+    <div class="gtools">
+      <div class="chips" id="galSrc" role="group" aria-label="Source">
+        <button class="chip" aria-pressed="true" data-src="action100m">Internet video</button>
+        <button class="chip" aria-pressed="false" data-src="mocap">Motion capture</button>
+      </div>
+      <div class="gseg" id="galMode" role="group" aria-label="View">
+        <button aria-pressed="true" data-mode="ghost">One future</button>
+        <button aria-pressed="false" data-mode="seq">Three futures</button>
+      </div>
+    </div>
+    <div class="ggrid" id="galGrid"></div>
+  </div>
+</section>
+
+
+<section class="sec" id="cite">
+  <div class="wrap read">
+    <h2 class="sh center">BibTeX</h2>
+    <div class="bib">
+      <div class="bbar"><span>grasping-the-future.bib</span><button id="copyBib">Copy</button></div>
+<pre id="bibText"><span class="k">@article</span>{soraki2026grasping,
+  <span class="k">title</span>={Grasping the Future: Joint 3D Hand-Object Forecasting From Internet Videos},
+  <span class="k">author</span>={Soraki, Rustin and Wallingford, Matthew and Aby, Ryan and Chee, Brandon and Ren, Jason and Farhadi, Ali and Bharadhwaj, Homanga and Mottaghi, Roozbeh},
+  <span class="k">journal</span>={arXiv preprint arXiv:2611.12879},
+  <span class="k">year</span>={2026}
+}</pre>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">Grasping the Future &middot; 2026. Look and type follow <a href="https://objectforesight.github.io">ObjectForesight</a>; the interactive layout is inspired by <a href="https://ledger-3d.github.io">LEDGER</a>.</div>
+</footer>
+
+<script>
+(() => {
+  const V = "assets/video/";
+  const $ = (s, r = document) => r.querySelector(s);
+  const el = (tag, attrs = {}, kids = []) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === "text") e.textContent = v; else if (k === "html") e.innerHTML = v; else e.setAttribute(k, v); } kids.forEach(k => e.appendChild(k)); return e; };
+  const press = (group, btn) => group.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b === btn ? "true" : "false"));
+
+  // ---------------- section rail: scrollspy, a glass that follows the background behind it, phone dropdown ----------------
+  const nav = $("#nav"), tocBtn = $("#tocBtn"), tocCur = $("#tocCur"), stageBand = $("#watch");
+  const links = [...document.querySelectorAll("#navlinks a")];
+  const ALIAS = { abstract: "overview", top: null };  // the abstract reads as part of the overview; the title block has no entry
+  const desk = window.matchMedia("(min-width: 901px)");
+  function setActive(id) {
+    let on = null;
+    links.forEach(a => { const hit = a.getAttribute("href") === "#" + id; a.classList.toggle("on", hit); if (hit) { on = a; a.setAttribute("aria-current", "location"); } else a.removeAttribute("aria-current"); });
+    tocCur.textContent = on ? on.querySelector(".lab").textContent : "Sections";
+  }
+  const spy = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) setActive(e.target.id in ALIAS ? ALIAS[e.target.id] : e.target.id); }), { rootMargin: "-45% 0px -50% 0px" });
+  [...links.map(a => a.getAttribute("href").slice(1)), ...Object.keys(ALIAS)].forEach(id => { const s = document.getElementById(id); if (s) spy.observe(s); });
+  // the glass (and the corner buttons) turns dark while most of the index sits over the dark stage
+  let shading = false;
+  function shade() {
+    shading = false;
+    const r = stageBand.getBoundingClientRect(), over = el => { const b = el.getBoundingClientRect(), y = b.top + b.height / 2; return b.height > 0 && y > r.top && y < r.bottom; };
+    nav.classList.toggle("dark", desk.matches && links.filter(over).length > links.length / 2);
+    tocBtn.classList.toggle("dark", over(tocBtn));
+  }
+  const queueShade = () => { if (!shading) { shading = true; requestAnimationFrame(shade); } };
+  window.addEventListener("scroll", queueShade, { passive: true }); window.addEventListener("resize", queueShade); shade();
+  const setToc = open => { nav.classList.toggle("open", open); tocBtn.setAttribute("aria-expanded", open ? "true" : "false"); };
+  tocBtn.addEventListener("click", e => { e.stopPropagation(); setToc(!nav.classList.contains("open")); });
+  nav.addEventListener("click", e => { if (e.target.closest("a")) setToc(false); });
+  document.addEventListener("click", e => { if (nav.classList.contains("open") && !nav.contains(e.target)) setToc(false); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && nav.classList.contains("open")) { setToc(false); tocBtn.focus(); } });
+
+  // ---------------- autoplay videos only while visible ----------------
+  const vis = new IntersectionObserver(es => es.forEach(e => { const v = e.target; if (e.isIntersecting) { const p = v.play(); if (p && p.catch) p.catch(() => {}); } else v.pause(); }), { threshold: 0.25 });
+  const watch = v => vis.observe(v);
+
+  // ---------------- hero stage: plays the clips one after another; the 3D view follows the camera video's clock ----------------
+  const HERO = [
+    { key: "action100m_future_prediction_spoon", name: "Spoon", task: "Forecast", what: "internet video &middot; scraping meat from a bowl into a pot", n: 0 },
+    { key: "action100m_temporal_infilling_aloe", name: "Aloe leaf", task: "Infill", what: "internet video &middot; lowering an aloe leaf to peel it" },
+    { key: "mocap_future_prediction_092", name: "Bowl", task: "Forecast", what: "motion capture &middot; skimming with a bowl" },
+    { key: "action100m_object_to_hand_057", name: "Cup", task: "Object &rarr; hands", what: "internet video &middot; pouring from a measuring cup" },
+    { key: "action100m_future_prediction_glassbowl", name: "Glass bowl", task: "Forecast", what: "internet video &middot; holding up a glass bowl" },
+    { key: "action100m_goal_infilling_lentils", name: "Lentils", task: "Goal", what: "internet video &middot; pouring lentils into a cooker" },
+    { key: "mocap_future_prediction_108", name: "Eraser", task: "Forecast", what: "motion capture &middot; wiping a whiteboard" },
+    { key: "action100m_hand_to_object_jar", name: "Jar", task: "Hands &rarr; object", what: "internet video &middot; setting a jar down" },
+  ];
+  // frame-exact phases of each locked video: pre = lead-in before the
+  // window, obs = observed, beat = the freeze, pred = a future playing, hold / fade / end = a future's last pose, play = video_v2
+  const SYNC = {"action100m_future_prediction_spoon":{"ghost":{"fps":30.0,"segs":[{"f0":0,"f1":46,"k":"pre","t0":-1.52,"step":0.03333},{"f0":46,"f1":60,"k":"obs","t0":0.01333,"step":0.03333},{"f0":60,"f1":81,"k":"beat","t":0.4},{"f0":81,"f1":216,"k":"pred","fut":0,"t0":0.43333,"step":0.03333},{"f0":216,"f1":252,"k":"end","fut":0,"t":4.9}]},"seq":{"fps":30.0,"segs":[{"f0":0,"f1":46,"k":"pre","t0":-1.52,"step":0.03333},{"f0":46,"f1":60,"k":"obs","t0":0.01333,"step":0.03333},{"f0":60,"f1":81,"k":"beat","t":0.4},{"f0":81,"f1":148,"k":"pred","fut":0,"t0":0.46667,"step":0.06667},{"f0":148,"f1":166,"k":"hold","fut":0,"t":4.86667},{"f0":166,"f1":176,"k":"fade","fut":0,"t":4.86667},{"f0":176,"f1":243,"k":"pred","fut":1,"t0":0.46667,"step":0.06667},{"f0":243,"f1":261,"k":"hold","fut":1,"t":4.86667},{"f0":261,"f1":271,"k":"fade","fut":1,"t":4.86667},{"f0":271,"f1":338,"k":"pred","fut":2,"t0":0.46667,"step":0.06667},{"f0":338,"f1":374,"k":"end","fut":2,"t":4.86667}]}},"action100m_temporal_infilling_aloe":{"video":{"fps":12.5,"segs":[{"f0":0,"f1":63,"k":"play","t0":0.0,"step":0.08},{"f0":63,"f1":78,"k":"end","t":4.96}]}},"mocap_future_prediction_092":{"ghost":{"fps":30.0,"segs":[{"f0":0,"f1":18,"k":"obs","t0":0.0,"step":0.0},{"f0":18,"f1":33,"k":"obs","t0":0.0,"step":0.03333},{"f0":33,"f1":54,"k":"beat","t":0.4667},{"f0":54,"f1":189,"k":"pred","fut":0,"t0":0.50003,"step":0.03333},{"f0":189,"f1":225,"k":"end","fut":0,"t":4.9667}]},"seq":{"fps":30.0,"segs":[{"f0":0,"f1":18,"k":"obs","t0":0.0,"step":0.0},{"f0":18,"f1":33,"k":"obs","t0":0.0,"step":0.03333},{"f0":33,"f1":54,"k":"beat","t":0.4667},{"f0":54,"f1":121,"k":"pred","fut":0,"t0":0.53337,"step":0.06667},{"f0":121,"f1":139,"k":"hold","fut":0,"t":4.93337},{"f0":139,"f1":149,"k":"fade","fut":0,"t":4.93337},{"f0":149,"f1":216,"k":"pred","fut":1,"t0":0.53337,"step":0.06667},{"f0":216,"f1":234,"k":"hold","fut":1,"t":4.93337},{"f0":234,"f1":244,"k":"fade","fut":1,"t":4.93337},{"f0":244,"f1":311,"k":"pred","fut":2,"t0":0.53337,"step":0.06667},{"f0":311,"f1":347,"k":"end","fut":2,"t":4.93337}]}},"action100m_object_to_hand_057":{"video":{"fps":10.0,"segs":[{"f0":0,"f1":49,"k":"play","t0":0.0,"step":0.1},{"f0":49,"f1":61,"k":"end","t":4.8}]}},"action100m_future_prediction_glassbowl":{"ghost":{"fps":30.0,"segs":[{"f0":0,"f1":18,"k":"obs","t0":0.0,"step":0.0},{"f0":18,"f1":34,"k":"obs","t0":0.0,"step":0.03333},{"f0":34,"f1":55,"k":"beat","t":0.401},{"f0":55,"f1":191,"k":"pred","fut":0,"t0":0.43433,"step":0.03333},{"f0":191,"f1":227,"k":"end","fut":0,"t":4.93433}]},"seq":{"fps":30.0,"segs":[{"f0":0,"f1":18,"k":"obs","t0":0.0,"step":0.0},{"f0":18,"f1":34,"k":"obs","t0":0.0,"step":0.03333},{"f0":34,"f1":55,"k":"beat","t":0.401},{"f0":55,"f1":123,"k":"pred","fut":0,"t0":0.46767,"step":0.06667},{"f0":123,"f1":141,"k":"hold","fut":0,"t":4.93433},{"f0":141,"f1":151,"k":"fade","fut":0,"t":4.93433},{"f0":151,"f1":219,"k":"pred","fut":1,"t0":0.46767,"step":0.06667},{"f0":219,"f1":237,"k":"hold","fut":1,"t":4.93433},{"f0":237,"f1":247,"k":"fade","fut":1,"t":4.93433},{"f0":247,"f1":315,"k":"pred","fut":2,"t0":0.46767,"step":0.06667},{"f0":315,"f1":351,"k":"end","fut":2,"t":4.93433}]}},"action100m_goal_infilling_lentils":{"video":{"fps":12.5,"segs":[{"f0":0,"f1":59,"k":"play","t0":0.0,"step":0.08},{"f0":59,"f1":74,"k":"end","t":4.32}]}},"mocap_future_prediction_108":{"ghost":{"fps":30.0,"segs":[{"f0":0,"f1":45,"k":"pre","t0":-1.5,"step":0.03333},{"f0":45,"f1":60,"k":"obs","t0":0.0,"step":0.03333},{"f0":60,"f1":81,"k":"beat","t":0.4667},{"f0":81,"f1":216,"k":"pred","fut":0,"t0":0.50003,"step":0.03333},{"f0":216,"f1":252,"k":"end","fut":0,"t":4.9667}]},"seq":{"fps":30.0,"segs":[{"f0":0,"f1":45,"k":"pre","t0":-1.5,"step":0.03333},{"f0":45,"f1":60,"k":"obs","t0":0.0,"step":0.03333},{"f0":60,"f1":81,"k":"beat","t":0.4667},{"f0":81,"f1":148,"k":"pred","fut":0,"t0":0.53337,"step":0.06667},{"f0":148,"f1":166,"k":"hold","fut":0,"t":4.93337},{"f0":166,"f1":176,"k":"fade","fut":0,"t":4.93337},{"f0":176,"f1":243,"k":"pred","fut":1,"t0":0.53337,"step":0.06667},{"f0":243,"f1":261,"k":"hold","fut":1,"t":4.93337},{"f0":261,"f1":271,"k":"fade","fut":1,"t":4.93337},{"f0":271,"f1":338,"k":"pred","fut":2,"t0":0.53337,"step":0.06667},{"f0":338,"f1":374,"k":"end","fut":2,"t":4.93337}]}},"action100m_hand_to_object_jar":{"video":{"fps":9.99,"segs":[{"f0":0,"f1":49,"k":"play","t0":0.0,"step":0.1001},{"f0":49,"f1":61,"k":"end","t":4.8048}]}}};
+  const IDLE_MS = 10000;   // after this long without input, autoplay resumes at the end of the current clip
+  let heroIdx = 0, heroMode = "ghost", heroSeen = true, heroAuto = true, lastInput = 0;
+  const hv = $("#heroVideo"), hc = $("#heroClips"), hm = $("#heroMode"), scr = $("#screen"), f3 = $("#stage3d");
+  const desktop = window.matchMedia("(min-width: 761px)").matches;
+  if (desktop) f3.src = f3.dataset.src; else f3.remove();
+  hv.loop = false;
+  const isForecast = c => !!SYNC[c.key].ghost;
+  function takeControl() { heroAuto = false; lastInput = performance.now(); hv.loop = true; }
+  HERO.forEach((c, i) => { const b = el("button", { "aria-pressed": i === 0 ? "true" : "false", html: `${c.name}<small>${c.task}</small>` }); b.addEventListener("click", () => { takeControl(); heroIdx = i; setHero(); }); hc.appendChild(b); });
+  hm.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { if (b.disabled) return; takeControl(); heroMode = b.dataset.mode; setHero(); }));
+  $("#swapBtn").addEventListener("click", e => { takeControl(); const on = !scr.classList.contains("swapped"); scr.classList.toggle("swapped", on); e.currentTarget.setAttribute("aria-pressed", on ? "true" : "false"); });
+  $("#vidwin").addEventListener("pointerdown", takeControl);
+  window.addEventListener("message", ev => { if (ev.source === f3.contentWindow && ev.data && ev.data.type === "gtf3d-interact") takeControl(); });
+  function setHero() {
+    const c = HERO[heroIdx], fc = isForecast(c), mode = fc ? heroMode : "video";
+    const dir = mode === "ghost" ? "freeze_ghost_v2/" : mode === "seq" ? "freeze_seq_v2/" : "video_v2/";
+    press(hc, hc.children[heroIdx]);
+    hm.querySelectorAll("button").forEach(b => { b.disabled = !fc && b.dataset.mode === "seq"; b.setAttribute("aria-pressed", (fc ? b.dataset.mode === heroMode : b.dataset.mode === "ghost") ? "true" : "false"); });
+    hv.poster = V + dir + c.key + ".jpg"; hv.src = V + dir + c.key + ".mp4";
+    const p = hv.play(); if (p && p.catch) p.catch(() => {});
+    const tail = !fc ? "given in white, predicted in colour" : heroMode === "seq" ? (c.n === 0 ? "three futures, 2&times; speed" : "three of 20 futures, 2&times; speed") : (c.n === 0 ? "one future" : "one of 20 futures");
+    $("#heroWhat").innerHTML = `<b>${c.task}</b> &middot; ${c.what} &middot; ${tail}`;
+  }
+  function next() {
+    heroIdx = (heroIdx + 1) % HERO.length;
+    if (heroAuto) { heroMode = "ghost"; if (f3.contentWindow) f3.contentWindow.postMessage({ type: "gtf3d-view", v: "sway" }, "*"); }
+    setHero();
+  }
+  hv.addEventListener("ended", () => next());
+  function stateAt(table, time) {
+    const segs = table.segs, fr = Math.floor(time * table.fps + 1e-3);
+    let s = segs[segs.length - 1];
+    for (const x of segs) { if (fr < x.f1) { s = x; break; } }
+    const n = Math.max(0, fr - s.f0), u = Math.min(1, (n + 1) / Math.max(1, s.f1 - s.f0));
+    return { k: s.k, t: s.t0 !== undefined ? s.t0 + n * s.step : s.t, u, fut: s.fut || 0 };
+  }
+  new IntersectionObserver(es => es.forEach(e => { heroSeen = e.isIntersecting; }), { threshold: 0.05 }).observe(scr);
+  (function heroTick() {
+    if (!heroAuto && performance.now() - lastInput > IDLE_MS) { heroAuto = true; hv.loop = false; }   // the current clip ends, then autoplay continues
+    if (desktop && heroSeen && f3.contentWindow) {
+      const c = HERO[heroIdx], table = SYNC[c.key][isForecast(c) ? heroMode : "video"];
+      const st = stateAt(table, hv.currentTime);
+      f3.contentWindow.postMessage({ type: "gtf3d-state", key: c.key, k: st.k, t: st.t, u: st.u, future: st.fut }, "*");
+    }
+    requestAnimationFrame(heroTick);
+  })();
+  setHero(); watch(hv);
+
+  // ---------------- tasks ----------------
+  const T = 50; // 5 s at 10 Hz
+  const all = [[0, T]], first = [[0, 1]], ends = [[0, 1], [T - 1, T]];
+  const TASKS = [
+    { name: "Forecast", file: "freeze_ghost_v2/action100m_future_prediction_jar", q: "Given half a second of everything, what happens next?", given: "both hands and the object for the first 0.5 s", pred: "everything after that", m: { L: [[0, 5]], R: [[0, 5]], O: [[0, 5]] } },
+    { name: "Hands → object", file: "video_v2/action100m_hand_to_object_jar", q: "Given how the hands move, how does the object move?", given: "both hands throughout; the object's first pose", pred: "the object's path", m: { L: all, R: all, O: first } },
+    { name: "Object → hands", file: "video_v2/action100m_object_to_hand_jar", q: "Given how the object moves, how must the hands move?", given: "the object throughout; the hands' first poses", pred: "both hands' paths", m: { L: first, R: first, O: all } },
+    { name: "Infill", file: "video_v2/action100m_temporal_infilling_jar", q: "Given the start and the end, what happened in between?", given: "everything except the middle third", pred: "the middle 1.7 s", m: { L: [[0, 17], [33, T]], R: [[0, 17], [33, T]], O: [[0, 17], [33, T]] } },
+    { name: "Goal", file: "video_v2/action100m_goal_infilling_jar", q: "Given where everything ends up, how does it get there?", given: "the first and the last frame", pred: "everything between", m: { L: ends, R: ends, O: ends } },
+    { name: "Goal for the hands", file: "video_v2/action100m_goal_hand_only_jar", q: "Given where the hands end up, what does the object do?", given: "the first frame; the hands' last poses", pred: "the object's path; the hands between", m: { L: ends, R: ends, O: first } },
+    { name: "Goal for the object", file: "video_v2/action100m_goal_object_only_jar", q: "Given where the object ends up, what do the hands do?", given: "the first frame; the object's last pose", pred: "both hands' paths; the object between", m: { L: first, R: first, O: ends } },
+  ];
+  const grid = $("#maskGrid"), rows = {};
+  [["L", "left hand", "var(--left)"], ["R", "right hand", "var(--right)"], ["O", "object", "var(--obj)"]].forEach(([k, label, col]) => {
+    grid.appendChild(el("div", { class: "lab", html: `<i style="background:${col}"></i>${label}` }));
+    const r = el("div", { class: "cells" }); for (let i = 0; i < T; i++) r.appendChild(el("span")); grid.appendChild(r); rows[k] = r;
+  });
+  const tv = $("#taskVideo"), tc = $("#taskChips");
+  TASKS.forEach((t, i) => { const b = el("button", { class: "chip", "aria-pressed": i === 0 ? "true" : "false", text: t.name }); b.addEventListener("click", () => { press(tc, b); setTask(i); }); tc.appendChild(b); });
+  function setTask(i) {
+    const t = TASKS[i];
+    $("#taskName").textContent = t.name; $("#taskQ").textContent = t.q; $("#taskGiven").textContent = t.given; $("#taskPred").textContent = t.pred;
+    for (const k of ["L", "R", "O"]) { const obs = new Array(T).fill(false); t.m[k].forEach(([a, b]) => { for (let f = a; f < b; f++) obs[f] = true; }); [...rows[k].children].forEach((s, f) => { s.className = obs[f] ? "o" : "p"; }); }
+    tv.poster = V + t.file + ".jpg"; tv.src = V + t.file + ".mp4"; const p = tv.play(); if (p && p.catch) p.catch(() => {});
+  }
+  setTask(0); watch(tv);
+
+  // ---------------- futures + any other autoplay videos ----------------
+  document.querySelectorAll("video[data-auto]").forEach(watch);
+
+  // ---------------- data lens ----------------
+  // one extraction, one video per stage. The "clock"
+  // stages share the clip's frames one to one, so a switch lands on the same moment; Point and Object hold one frame
+  // (Molmo 2 points on a single frame; SAM 3D's mesh turns on the frame it was built from) and the clock resumes there.
+  const P = "assets/pipeline/", PV = P + "video/";
+  const PIPE = { fps: 29.97, point: 88, object: 93 };  // pipeline.json
+  const tAt = f => f / PIPE.fps;
+  const STEPS = [
+    { vid: "clip", kind: "clock", t: "The clip", tool: "Action100M", d: "Molmo 2 keeps clips where a hand handles an object. Here: holding up a carton of chicken stock." },
+    { vid: "point", kind: "pin", at: tAt(PIPE.point), t: "Point", tool: "Molmo 2", d: "Molmo 2 is asked to “point to the object held in the hand” and marks it on one frame." },
+    { vid: "mask", kind: "clock", t: "Mask", tool: "SAM 3", d: "SAM 3 outlines the object and follows it through the clip." },
+    { vid: "hands", kind: "clock", t: "Hands", tool: "WiLoR", d: "WiLoR fits a 3D hand model to each hand in every frame." },
+    { vid: "object", kind: "pin", at: tAt(PIPE.object), t: "Object", tool: "SAM 3D · MoGe · MegaSaM", d: "SAM 3D rebuilds the object in 3D from one frame. MoGe gives the depth and MegaSaM the camera's motion." },
+    { vid: "trajectory", kind: "clock", t: "Trajectory", tool: "bundle adjustment · joint optimization", d: "Points tracked on the object fix how it moves. An optimization keeps the hands touching it without passing through it." },
+  ];
+  // the automatic tour, one pass per loop: [step, clock to start from (null: carry on), when to move on]
+  const TOUR = [
+    [0, 0, v => v.currentTime >= tAt(PIPE.point)],    // the clip plays up to the frame Molmo 2 points at
+    [1, 0, v => v.currentTime >= 2.6],                 // the points land
+    [2, tAt(PIPE.point), v => v.ended],                // SAM 3 follows the object from that frame on
+    [3, 0, v => v.currentTime >= tAt(PIPE.object)],    // WiLoR's hands, up to SAM 3D's frame
+    [4, 0, v => v.currentTime >= 3.45],                // SAM 3D's mesh turns once
+    [5, tAt(PIPE.object), v => v.ended],               // the final motion from that frame on
+  ];
+  const lf = $("#lensFrame"), ls = $("#lensSteps"), vids = [];
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let cur = -1, tourI = 0, touched = false, seen = false;
+  STEPS.forEach((s, i) => {
+    const v = el("video", { muted: "", playsinline: "", preload: "none", poster: PV + s.vid + ".jpg", "aria-label": s.t + ": " + s.d });
+    v.muted = true; v.dataset.src = PV + s.vid + ".mp4"; lf.appendChild(v); vids.push(v);
+    const b = el("button", { "aria-pressed": "false", html: `<span class="n">${i + 1}</span><span class="t">${s.t}<small>${s.tool}</small></span><span class="d">${s.d}</span>` });
+    b.addEventListener("click", () => { touched = true; show(i, null); }); ls.appendChild(el("li", {}, [b]));
+  });
+  // sources are set lazily (first time the lens comes within 900 px), and always before a play(): setting a source after
+  // play() aborts it ("interrupted by a new load request"); a play still cut short by a load is retried once it can play
+  let armed = false;
+  const arm = () => { if (!armed) { armed = true; vids.forEach(v => { v.src = v.dataset.src; v.preload = "auto"; }); } };
+  const play = v => {
+    if (!seen || (reduce && !touched)) return;
+    arm(); const p = v.play();
+    if (p && p.catch) p.catch(e => { if (e && e.name === "AbortError") v.addEventListener("canplay", () => { if (seen && vids[cur] === v) v.play().catch(() => {}); }, { once: true }); });
+  };
+  function seekTo(v, t) {
+    const go = () => { v.currentTime = Math.min(t, Math.max(0, v.duration - 0.04)); };
+    if (v.readyState >= 1) go(); else v.addEventListener("loadedmetadata", go, { once: true });
+  }
+  // show step i: a clock stage starts at `start`, else where the previous clock stage was (or at the previous pin's frame)
+  function show(i, start) {
+    if (i === cur) { if (touched) vids[i].loop = true; play(vids[i]); return; }
+    const prev = cur >= 0 ? vids[cur] : null, ps = cur >= 0 ? STEPS[cur] : null, s = STEPS[i], v = vids[i];
+    const t = start !== null ? start : s.kind === "pin" || !ps ? 0 : ps.kind === "clock" ? prev.currentTime : ps.at;
+    v.loop = touched || s.kind === "pin";  // on the tour a clock stage runs to its end, then the next one takes over
+    seekTo(v, t); play(v);
+    vids.forEach((x, k) => x.classList.toggle("on", k === i));
+    if (prev) setTimeout(() => { if (vids[cur] !== prev) prev.pause(); }, 520);
+    cur = i;
+    ls.querySelectorAll("button").forEach((b, k) => b.setAttribute("aria-pressed", k === i ? "true" : "false"));
+    $("#lensTag").textContent = `${i + 1} / ${STEPS.length} · ${STEPS[i].tool}`;
+  }
+  show(0, 0);
+  (function tour() {
+    if (seen && !touched && !reduce && TOUR[tourI][2](vids[cur])) { tourI = (tourI + 1) % TOUR.length; show(TOUR[tourI][0], TOUR[tourI][1]); }
+    requestAnimationFrame(tour);
+  })();
+  new IntersectionObserver((es, o) => es.forEach(e => { if (e.isIntersecting) { arm(); o.disconnect(); } }), { rootMargin: "900px 0px" }).observe(lf);
+  new IntersectionObserver(es => es.forEach(e => { seen = e.isIntersecting; if (seen) play(vids[cur]); else vids.forEach(v => v.pause()); }), { threshold: 0.4 }).observe(lf);
+  const REJ = [
+    ["rej1_video", "rej1_overlay", "Image fidelity", "silhouette IoU 0.26 < 0.30"],
+    ["rej2_front", "rej2_top", "Physical plausibility", "penetration 23.8 > 20 mm"],
+    ["rej3_overlay", "rej3_3d", "Interaction evidence", "hand gap 0.44 > 0.05 m"],
+    ["rej4_before", "rej4_after", "Temporal consistency", "shot cut inside the clip"],
+    ["rej5_video", "rej5_3d", "Object identity", "cup rebuilt as a goblet"],
+  ];
+  const rj = $("#rejects");
+  REJ.forEach(([a, b, t, why]) => rj.appendChild(el("div", { class: "rej", html: `<div class="pair"><img src="${P + a}.webp" alt="" loading="lazy"><img src="${P + b}.webp" alt="" loading="lazy"></div><p><b>${t}</b><span>${why}</span></p>` })));
+
+  // ---------------- charts ----------------
+  const EXT = {
+    // Table 2: FDE, energy score over each method's N samples (N = 1: plain error)
+    "Object": [["Ours", 91.1, 1, 20], ["ObjectForesight", 130.4, 0, 20], ["MotionForesight", 142.9, 0, 1], ["MolmoMotion", 182.3, 0, 10], ["General Flow", 198.9, 0, 20]],
+    "Right wrist": [["Ours", 92.4, 1, 20], ["ForeHand4D", 133.6, 0, 20], ["USST", 182.3, 0, 1], ["EgoH4", 327.8, 0, 1], ["Uni-Hand", 348.7, 0, 20]],
+    "Left wrist": [["Ours", 103.4, 1, 20], ["ForeHand4D", 122.8, 0, 20], ["USST", 196.3, 0, 1], ["EgoH4", 292.5, 0, 1], ["Uni-Hand", 359.5, 0, 20]],
+  };
+  const et = $("#extTabs"), eb = $("#extBars");
+  let chartsSeen = false;
+  function drawExt(k) {
+    eb.innerHTML = ""; const rows = EXT[k], mx = Math.max(...rows.map(r => r[1]));
+    rows.forEach(([n, v, ours, N]) => { const r = el("div", { class: "brow" + (ours ? " ours" : ""), html: `<span class="nm">${n}${N > 1 ? ` <span class="nn">&times;${N}</span>` : ""}</span><span class="track"><span class="fill" data-w="${(100 * v / mx).toFixed(1)}"></span></span><span class="val">${v.toFixed(1)}</span>` }); eb.appendChild(r); });
+    if (chartsSeen) requestAnimationFrame(() => eb.querySelectorAll(".fill").forEach(f => f.style.width = f.dataset.w + "%"));
+  }
+  Object.keys(EXT).forEach((k, i) => { const b = el("button", { "aria-pressed": i === 0 ? "true" : "false", text: k }); b.addEventListener("click", () => { press(et, b); drawExt(k); }); et.appendChild(b); });
+  drawExt("Object");
+  const PAIRS = [["Forecast · object", 159.0, 145.8], ["Forecast · hands", 185.6, 157.4], ["Hands → object", 71.6, 59.1], ["Object → hands", 132.9, 98.7], ["Goal for the hands · object", 146.1, 126.1], ["Goal for the object · hands", 166.9, 129.3]];
+  const dp = $("#dataPairs"), pmx = Math.max(...PAIRS.map(p => p[1]));
+  PAIRS.forEach(([n, a, b]) => dp.appendChild(el("div", { class: "prow", html: `<span class="nm">${n}</span><span class="line"><span class="track"><span class="fill" data-w="${(100 * a / pmx).toFixed(1)}"></span></span><span class="val">${a.toFixed(1)}</span></span><span class="line ours"><span class="track"><span class="fill" data-w="${(100 * b / pmx).toFixed(1)}"></span></span><span class="val">${b.toFixed(1)} (−${(a - b).toFixed(0)})</span></span>` })));
+  const RATES = [["Kinematic", 14.6], ["+ grasp preparation", 43.7], ["SPIDER (physics)", 73.8, 1]];
+  const rr = $("#robotRates");
+  RATES.forEach(([n, v, ours]) => rr.appendChild(el("div", { class: "brow" + (ours ? " ours" : ""), html: `<span class="nm">${n}</span><span class="track"><span class="fill" data-w="${v}"></span></span><span class="val">${v.toFixed(1)}%</span>` })));
+  new IntersectionObserver((es, o) => es.forEach(e => { if (e.isIntersecting) { chartsSeen = true; e.target.querySelectorAll(".fill").forEach(f => f.style.width = f.dataset.w + "%"); o.unobserve(e.target); } }), { threshold: 0.3 }).observe($("#results"));
+  new IntersectionObserver((es, o) => es.forEach(e => { if (e.isIntersecting) { e.target.querySelectorAll(".fill").forEach(f => f.style.width = f.dataset.w + "%"); o.unobserve(e.target); } }), { threshold: 0.3 }).observe(rr);
+
+  // robot replays
+  const ROBOT = [  // stiff-contact replays: key = episode_seed, err = mean object error (mm), vis = max visible finger overlap (mm)
+    { key: "ep082_s2", name: "Glass", tag: "Action100M", hands: 2, what: "<b>Internet video.</b> Holding a glass in both hands.", err: 11.6, vis: 1.4 },
+    { key: "ep108_s2", name: "Basket", tag: "Action100M", hands: 2, what: "<b>Internet video.</b> Holding up a basket with both hands.", err: 12.0, vis: 1.3 },
+    { key: "ep137_s2", name: "Tape roll", tag: "OakInk2", hands: 2, what: "<b>Motion capture (OakInk2).</b> Turning a roll of tape with both hands.", err: 3.6, vis: 0.0 },
+    { key: "ep071_s0", name: "Milk carton", tag: "HOT3D", hands: 2, what: "<b>Motion capture (HOT3D).</b> Holding a milk carton with both hands.", err: 11.7, vis: 2.0 },
+    { key: "ep148_s1", name: "Lint roller", tag: "TACO", hands: 2, what: "<b>Motion capture (TACO).</b> Picking up a lint roller to clean a pan.", err: 9.9, vis: 0.0 },
+    { key: "ep044_s1", name: "Mustard", tag: "DexYCB", hands: 1, what: "<b>Motion capture (DexYCB).</b> Lifting a mustard bottle with the left hand.", err: 8.7, vis: 1.5 },
+  ];
+  const rv = $("#robotVideo"), rc = $("#robotChips");
+  ROBOT.forEach((c, i) => { const b = el("button", { class: "chip", "aria-pressed": i === 0 ? "true" : "false", text: `${c.name} \u00b7 ${c.tag}` }); b.addEventListener("click", () => { press(rc, b); setRobot(i); }); rc.appendChild(b); });
+  function setRobot(i) {
+    const c = ROBOT[i], R = "assets/robot/stiff/";
+    $("#robotObs").src = `${R}${c.key}_observed.webp`;
+    rv.poster = `${R}${c.key}.jpg`; rv.src = `${R}${c.key}.mp4`; const p = rv.play(); if (p && p.catch) p.catch(() => {});
+    const who = c.hands === 2 ? "The two simulated hands move" : "The simulated hand moves";
+    const sink = c.vis < 0.5 ? "The fingers never sink into it." : `The fingers sink into it by at most ${c.vis.toFixed(1)} mm.`;
+    $("#robotCap").innerHTML = `${c.what} ${who} the object along the forecast path with a mean error of ${c.err.toFixed(1)} mm. ${sink}`;
+  }
+  setRobot(0); watch(rv);
+
+  // ---------------- gallery ----------------
+  const GAL = {
+    action100m: [["brush", "Brush", "brushing oil around a bowl"], ["book", "Book", "showing a book"], ["foamstrip", "Foam strip", "folding a foam strip"], ["batter", "Mixing bowl", "holding a bowl of batter over a pot", "hand_to_object", "Hands &rarr; object"], ["bowl", "Bowl", "pouring from a bowl", "object_to_hand", "Object &rarr; hands"], ["paper", "Paper", "folding origami paper", "object_to_hand", "Object &rarr; hands"], ["tile", "Tile", "spreading glue on a painted tile", "object_to_hand", "Object &rarr; hands"], ["controller", "Controller", "pointing at a temperature controller", "goal_object_only", "Goal for the object"], ["extruder", "Extruder", "filling a mould with a clay extruder", "goal_object_only", "Goal for the object"], ["packet", "Packet", "opening a snack packet", "goal_infilling", "Goal"]],
+    mocap: [["072", "Spatula", "HO-Cap"], ["096", "Cup", "TACO · emptying a cup into a kettle"], ["094", "Spatula", "TACO · stir-frying in a pan"], ["099", "Brush", "TACO · brushing a kettle"], ["100", "Spoon", "TACO · scraping a pan"], ["091", "Spoon", "TACO · skimming a plate"], ["093", "Skimmer", "TACO · skimming a plate"], ["078", "Box", "DexYCB · picking up a box"]],
+  };
+  let gsrc = "action100m", gmode = "ghost";
+  const gg = $("#galGrid"), gs = $("#galSrc"), gm = $("#galMode");
+  gs.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { gsrc = b.dataset.src; press(gs, b); drawGal(); }));
+  gm.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { gmode = b.dataset.mode; press(gm, b); drawGal(); }));
+  function drawGal() {
+    gg.querySelectorAll("video").forEach(v => { vis.unobserve(v); v.pause(); });
+    gg.innerHTML = "";
+    // an entry is [id, name, what] for a forecast (One future / Three futures) or [id, name, what, task, task label] for a
+    // clip of another task (video_v2: the clip, given in white, predicted in colour; the view switch does not apply)
+    GAL[gsrc].forEach(([id, obj, what, task, tname]) => {
+      const f = task ? V + "video_v2/" + gsrc + "_" + task + "_" + id : V + (gmode === "ghost" ? "freeze_ghost_v2/" : "freeze_seq_v2/") + gsrc + "_future_prediction_" + id;
+      const meta = task ? tname : "Forecast &middot; " + (gmode === "ghost" ? "1 future" : "3 futures");
+      const card = el("div", { class: "gitem", html: `<video muted loop playsinline preload="none" poster="${f}.jpg" src="${f}.mp4"></video><div class="cap"><span><b>${obj}</b> &middot; ${what}</span><span class="meta">${meta}</span></div>` });
+      gg.appendChild(card); watch(card.querySelector("video"));
+    });
+  }
+  drawGal();
+
+  // ---------------- bibtex copy ----------------
+  $("#copyBib").addEventListener("click", async e => {
+    const txt = $("#bibText").textContent; const b = e.currentTarget;
+    try { await navigator.clipboard.writeText(txt); b.textContent = "Copied"; }
+    catch (err) { const r = document.createRange(); r.selectNodeContents($("#bibText")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent = "Selected"; }
+    setTimeout(() => (b.textContent = "Copy"), 1600);
+  });
+})();
+</script>
+<script src="assets/js/model_anim.js"></script>
+</body>
+</html>

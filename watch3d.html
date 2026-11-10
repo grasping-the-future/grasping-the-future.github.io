@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Grasping the Future · 3D stage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --stage: #1e2318; --line: #343b2a; --ink: #ecebdc; --ink-2: #b3b79a; --muted: #858a6c; --accent: #6b8e23; --acc-lite: #c8d99a;
+    --obj: #ff942e; --right: #4dadfa; --left: #ed73b8; --given: #e8e2d2;
+    --serif: 'Fraunces', Georgia, serif; --sans: 'Hanken Grotesk', -apple-system, 'Segoe UI', Roboto, sans-serif; --mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+    --gl: max(16px, env(safe-area-inset-left, 0px)); --gr: max(16px, env(safe-area-inset-right, 0px)); color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--stage); color: var(--ink); font-family: var(--sans); -webkit-font-smoothing: antialiased; overflow: hidden; }
+  #world { position: fixed; inset: 0; background: radial-gradient(70% 80% at 50% 40%, #2a3120 0%, #1a1e14 62%, #13160f 100%); }
+  #world canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+  .scrim { position: fixed; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgba(19,22,15,.78) 0%, rgba(19,22,15,0) 16%), linear-gradient(0deg, rgba(19,22,15,.88) 0%, rgba(19,22,15,0) 24%); }
+  .top { position: fixed; top: 0; left: 0; right: 0; display: flex; gap: 14px; align-items: center; justify-content: space-between; flex-wrap: wrap;
+    padding: calc(12px + env(safe-area-inset-top, 0px)) var(--gr) 0 var(--gl); }
+  .brand { text-decoration: none; color: var(--ink); display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .brand b { font-family: var(--serif); font-weight: 600; font-size: 1.12rem; letter-spacing: -.01em; }
+  .brand small { font-family: var(--mono); font-size: .68rem; color: var(--muted); letter-spacing: .04em; }
+  .seg { display: flex; gap: 3px; padding: 4px; background: rgba(20,24,16,.72); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid var(--line); border-radius: 999px; overflow-x: auto; scrollbar-width: none; max-width: 100%; }
+  .seg::-webkit-scrollbar { display: none; }
+  .seg button { border: 0; background: transparent; color: var(--ink-2); padding: 7px 13px; border-radius: 999px; cursor: pointer; font: 500 .84rem var(--sans); white-space: nowrap; display: flex; gap: 7px; align-items: baseline; }
+  .seg button small { font-family: var(--mono); font-size: .66rem; color: var(--muted); }
+  .seg button:hover { color: #fff; }
+  .seg button[aria-pressed="true"] { background: #3a4329; color: #fff; }
+  .seg button[aria-pressed="true"] small { color: var(--acc-lite); }
+  .hud { position: fixed; left: 0; right: 0; bottom: 0; padding: 0 var(--gr) calc(14px + env(safe-area-inset-bottom, 0px)) var(--gl); display: grid; gap: 10px; }
+  .ticker { font-size: .95rem; color: var(--ink-2); text-align: center; text-shadow: 0 1px 3px #000; min-height: 1.4em; }
+  .ticker b { color: var(--ink); font-weight: 600; }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .play { flex: 0 0 auto; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: rgba(20,24,16,.8); color: var(--ink); cursor: pointer; display: grid; place-items: center; }
+  .play svg { width: 14px; height: 14px; fill: currentColor; }
+  .bar { position: relative; flex: 1 1 240px; height: 34px; cursor: pointer; min-width: 160px; touch-action: none; }
+  .bar .tr { position: absolute; left: 0; right: 0; top: 15px; height: 4px; border-radius: 2px; background: #2c3322; overflow: hidden; }
+  .bar .obs { position: absolute; left: 0; top: 0; bottom: 0; background: #8f917c; }
+  .bar .pred { position: absolute; top: 0; bottom: 0; right: 0; background: rgba(255,148,46,.35); }
+  .bar .fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--obj); }
+  .bar .head { position: absolute; top: 10px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: var(--obj); box-shadow: 0 0 0 3px rgba(255,148,46,.25); }
+  .bar .lab { position: absolute; top: -2px; font-family: var(--mono); font-size: .64rem; color: var(--muted); white-space: nowrap; }
+  .time { font-family: var(--mono); font-size: .8rem; color: var(--ink-2); min-width: 64px; text-align: right; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .78rem; color: var(--ink-2); }
+  .legend span { display: inline-flex; gap: 6px; align-items: center; }
+  .legend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .hint { font-family: var(--mono); font-size: .68rem; color: var(--muted); margin-left: auto; }
+  .pip { position: fixed; left: var(--gl); bottom: 150px; width: clamp(150px, 20vw, 320px); border-radius: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,.16); box-shadow: 0 16px 44px rgba(0,0,0,.6); background: #000; transition: width .3s ease; }
+  .pip.big { width: clamp(240px, 42vw, 720px); }
+  .pip img { display: block; width: 100%; height: auto; }
+  .pip .pl { position: absolute; left: 10px; top: 8px; font-family: var(--mono); font-size: .62rem; letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,.85); text-shadow: 0 1px 2px #000; }
+  .pip button { position: absolute; right: 6px; top: 6px; width: 24px; height: 24px; border-radius: 7px; border: 1px solid rgba(255,255,255,.25); background: rgba(0,0,0,.55); color: #fff; cursor: pointer; font-size: 12px; line-height: 1; }
+  .loading { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; font-family: var(--mono); font-size: .8rem; color: var(--ink-2); transition: opacity .3s; }
+  .loading.off { opacity: 0; }
+  .err { position: fixed; left: 50%; top: 45%; transform: translate(-50%, -50%); max-width: 520px; text-align: center; color: var(--ink-2); font-size: .95rem; line-height: 1.5; display: none; padding: 0 16px; }
+  body.embed .brand, body.embed #clips, body.embed .hud, body.embed .pip, body.embed .scrim { display: none; }
+  body.embed .top { justify-content: flex-end; padding: 10px 12px 0; }
+  body.embed .seg button { padding: 5px 11px; font-size: .78rem; }
+  body.embed .embhint { display: block; }
+  @media (max-width: 520px) { body.embed .top, body.embed .embhint { display: none; } }  /* small inset in the page: picture only */
+  body.capture .top, body.capture .embhint, body.capture .loading { display: none !important; }
+  .embhint { display: none; position: fixed; right: 14px; bottom: 10px; font-family: var(--mono); font-size: .66rem; color: rgba(236,235,220,.6); text-shadow: 0 1px 2px #000; pointer-events: none; }
+  @media (max-width: 760px) {
+    .pip { bottom: 196px; width: 36vw; }
+    .hint { display: none; }
+    .top { gap: 8px; }
+    .seg button { padding: 6px 10px; font-size: .8rem; }
+  }
+</style>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+               "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+</script>
+</head>
+<body>
+<div id="world"></div>
+<div class="scrim"></div>
+<div class="loading" id="loading">loading the scene&hellip;</div>
+<div class="embhint">drag to look around</div>
+<div class="err" id="err"></div>
+
+<div class="top">
+  <a class="brand" href="index.html"><b>Grasping the Future</b><small>3D STAGE &middot; PROTOTYPE</small></a>
+  <div class="seg" id="clips" role="group" aria-label="Clip"></div>
+  <div class="seg" id="views" role="group" aria-label="Camera">
+    <button aria-pressed="true" data-v="sway">Sway</button><button aria-pressed="false" data-v="orbit">Orbit</button><button aria-pressed="false" data-v="camera">Camera</button>
+  </div>
+</div>
+
+<div class="pip" id="pip"><img id="pipImg" alt="The last frame the model observed"><span class="pl">Last observed frame</span><button id="pipBtn" aria-label="Enlarge">&#x2922;</button></div>
+
+<div class="hud">
+  <div class="ticker" id="ticker"></div>
+  <div class="row">
+    <button class="play" id="play" aria-label="Pause"><svg viewBox="0 0 12 12" id="playIcon"><rect x="1.5" y="1" width="3" height="10" rx="1"/><rect x="7.5" y="1" width="3" height="10" rx="1"/></svg></button>
+    <div class="bar" id="bar"><span class="lab" id="labObs" style="left:0">video · observed</span><span class="lab" id="labPred">predicted</span><div class="tr"><div class="obs" id="segObs"></div><div class="pred" id="segPred"></div><div class="fill" id="fill"></div></div><div class="head" id="head"></div></div>
+    <span class="time" id="time">0.0 s</span>
+    <div class="seg" id="futs" role="group" aria-label="Future"></div>
+  </div>
+  <div class="row">
+    <div class="legend" id="legend"></div>
+    <span class="hint">drag to orbit &middot; scroll to zoom &middot; space to pause</span>
+  </div>
+</div>
+
+<script>
+  // data.js files call this (pages opened from disk cannot fetch; <script src> works everywhere)
+  window.GTF3D = {};
+  window.GTF3D_READY = (key, meta, scene, geom, ctx) => { window.GTF3D[key] = { meta, scene, geom, ctx }; document.dispatchEvent(new CustomEvent("gtf3d", { detail: key })); };
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+// the standalone page's clip chips (embedded in the main page, the page names the clip)
+const CLIPS = [
+  { key: "action100m_future_prediction_spoon", name: "Spoon", tag: "Forecast", what: "<b>Forecast</b> &middot; internet video &middot; scraping meat from a bowl into a pot" },
+  { key: "action100m_temporal_infilling_aloe", name: "Aloe leaf", tag: "Infill", what: "<b>Infill</b> &middot; internet video &middot; lowering an aloe leaf to peel it" },
+  { key: "mocap_future_prediction_092", name: "Bowl", tag: "Forecast", what: "<b>Forecast</b> &middot; motion capture &middot; skimming with a bowl" },
+  { key: "action100m_object_to_hand_057", name: "Cup", tag: "Object &rarr; hands", what: "<b>Object &rarr; hands</b> &middot; internet video &middot; pouring from a measuring cup" },
+  { key: "action100m_future_prediction_glassbowl", name: "Glass bowl", tag: "Forecast", what: "<b>Forecast</b> &middot; internet video &middot; holding up a glass bowl" },
+  { key: "action100m_goal_infilling_lentils", name: "Lentils", tag: "Goal", what: "<b>Goal</b> &middot; internet video &middot; pouring lentils into a cooker" },
+  { key: "mocap_future_prediction_108", name: "Eraser", tag: "Forecast", what: "<b>Forecast</b> &middot; motion capture &middot; wiping a whiteboard" },
+  { key: "action100m_hand_to_object_jar", name: "Jar", tag: "Hands &rarr; object", what: "<b>Hands &rarr; object</b> &middot; internet video &middot; setting a jar down" },
+];
+const GIVEN = new THREE.Color("#e8e2d2");
+const Q = new URLSearchParams(location.search);
+const BASE = Q.get("base") || "assets/3d";   // where the clips' bundles live
+const EMBED = Q.has("embed");                     // inside the main page: time and clip come from the page's video
+if (EMBED) document.body.classList.add("embed");
+if (Q.has("capture")) document.body.classList.add("capture");
+let pendingState = null, loadingKey = null;
+const $ = s => document.querySelector(s);
+const press = (g, b) => g.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
+const b64 = s => { const bin = atob(s), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u.buffer; };
+const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// ------------------------------------------------------------------ renderer, scene, camera
+const host = $("#world");
+let renderer;
+try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance", preserveDrawingBuffer: Q.has("capture") }); }
+catch (e) { $("#err").style.display = "block"; $("#err").textContent = "This browser could not start WebGL, so the 3D stage cannot run here. The video version on the main page shows the same predictions."; throw e; }
+renderer.setPixelRatio(Q.has("capture") ? 1 : Math.min(window.devicePixelRatio || 1, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+host.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 60);
+scene.add(camera);
+scene.add(new THREE.HemisphereLight(0xfdf8ee, 0x2b301f, 2.4));
+const keyLight = new THREE.DirectionalLight(0xffffff, 2.2); keyLight.position.set(0.4, 0.8, 1.0); camera.add(keyLight);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.08; controls.enabled = false; controls.zoomSpeed = 0.7; controls.rotateSpeed = 0.6;
+
+const pointMats = [];
+function pointScale() { return host.clientHeight * renderer.getPixelRatio() / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2)); }
+function resize() {
+  const w = host.clientWidth, h = host.clientHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  pointMats.forEach(m => { m.uniforms.uScale.value = pointScale(); m.uniforms.uHalf.value.set(renderer.domElement.width / 2, renderer.domElement.height / 2); });
+}
+window.addEventListener("resize", resize);
+
+// ------------------------------------------------------------------ grid clouds: one point per pixel of the original image,
+// rebuilt on the GPU from a depth texture (metres, 0 = no point) and a colour texture. The context video's depth and colour
+// are half resolution: a point takes the bilinear depth of its four depth texels where they agree within 4%; at a depth edge,
+// the texel whose colour is closest to its own, so the edge follows the full-resolution colour instead of a stair of texels.
+// uCut/uDir dissolve one cloud into the other without transparency (a point shows when its random key is on its side of uCut).
+const FOOT = Number(Q.get("foot")) || 1.7;   // disc diameter in image pixels at the point's depth (1.41 closes the grid seen from the original camera)
+const GRID_VS = `precision highp sampler2D;
+  uniform sampler2D uDepth, uColor;
+  uniform vec4 uK;      // fx, fy, cx, cy in image pixels
+  uniform vec4 uMap;    // depth texel = (pixel - offset) / stride: (stride, offset, edge ratio, -)
+  uniform vec2 uImg;    // image size in pixels
+  uniform vec2 uCol;    // colour texture: content / texture size (an odd grid is padded)
+  uniform mat4 uClip;   // OpenCV camera, metres -> clip space (stage, view, the 3% push below and projection in one)
+  uniform vec2 uHalf;   // half the drawing buffer, device pixels
+  uniform vec2 uGrow;   // disc growth on tilted surfaces: (max relative depth step per pixel, max factor)
+  uniform float uScale, uCut, uDir, uFoot, uSeed;
+  out vec3 vC; out float vKeep, vSize;
+  float key(uint x) { x = x * 2654435761u + uint(uSeed); x ^= x >> 16; x *= 0x7feb352du; x ^= x >> 15; x *= 0x846ca68bu; x ^= x >> 16; return float(x) / 4294967296.0; }
+  vec3 colourAt(vec2 p) { return texture(uColor, (p + 0.5) / uImg * uCol).rgb; }
+  vec4 clipOf(vec2 q, float z) { return uClip * vec4((q.x - uK.z) / uK.x * z, (q.y - uK.w) / uK.y * z, z, 1.0); }
+  vec2 screen(vec4 c) { return c.xy / max(c.w, 1e-6) * uHalf; }
+  float depthAt(vec2 p, vec3 c) {
+    ivec2 sz = textureSize(uDepth, 0);
+    vec2 t = clamp((p - uMap.y) / uMap.x, vec2(0.0), vec2(sz - 1));
+    ivec2 i0 = ivec2(floor(t)), i1 = min(i0 + 1, sz - 1);
+    vec2 f = t - vec2(i0);
+    float a = texelFetch(uDepth, i0, 0).r;
+    if (uMap.x < 1.5) return a;
+    ivec2 ids[4] = ivec2[4](i0, ivec2(i1.x, i0.y), ivec2(i0.x, i1.y), i1);
+    float zs[4] = float[4](a, texelFetch(uDepth, ids[1], 0).r, texelFetch(uDepth, ids[2], 0).r, texelFetch(uDepth, ids[3], 0).r);
+    float lo = min(min(zs[0], zs[1]), min(zs[2], zs[3])), hi = max(max(zs[0], zs[1]), max(zs[2], zs[3]));
+    if (lo > 0.0 && hi < lo * uMap.z) return mix(mix(zs[0], zs[1], f.x), mix(zs[2], zs[3], f.x), f.y);
+    float best = 1e9, z = 0.0;
+    for (int k = 0; k < 4; k++) {
+      if (zs[k] <= 0.0) continue;
+      vec3 dc = colourAt(vec2(ids[k]) * uMap.x + uMap.y) - c; vec2 dp = vec2(ids[k]) - t;
+      float cost = dot(dc, dc) + 0.02 * dot(dp, dp);
+      if (cost < best) { best = cost; z = zs[k]; }
+    }
+    return z;
+  }
+  void main() {
+    vec2 p = position.xy;
+    vC = colourAt(p);
+    float z = depthAt(p, vC), r = key(uint(gl_VertexID));
+    vKeep = (z > 0.0 && (uDir > 0.0 ? r < uCut : r >= uCut)) ? 1.0 : 0.0;
+    if (vKeep < 0.5) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); gl_PointSize = vSize = 1.0; return; }
+    vec4 c = clipOf(p, z);
+    gl_Position = c;
+    float base = uFoot * z / uK.x * uScale / max(c.w, 0.01), size = base;
+    // a surface seen more obliquely than from the original camera stretches the grid apart: grow the disc to the screen
+    // distance of the next depth texel on the same surface (right, below), so a tilted surface stays closed; a neighbour more
+    // than ~1% of depth away per pixel is a surface beyond ~85 degrees or a depth edge, which is not bridged
+    ivec2 sz = textureSize(uDepth, 0), i0 = ivec2(clamp(floor((p - uMap.y) / uMap.x), vec2(0.0), vec2(sz - 1)));
+    float z0 = texelFetch(uDepth, i0, 0).r;
+    if (z0 > 0.0) {
+      vec2 s0 = screen(uMap.x < 1.5 ? c : clipOf(vec2(i0) * uMap.x + uMap.y, z0));
+      for (int k = 0; k < 2; k++) {
+        ivec2 j = min(i0 + ivec2(1 - k, k), sz - 1);
+        float zj = texelFetch(uDepth, j, 0).r;
+        if (j != i0 && zj > 0.0 && abs(zj / z0 - 1.0) < uGrow.x * uMap.x) size = max(size, 1.15 * length(screen(clipOf(vec2(j) * uMap.x + uMap.y, zj)) - s0) / uMap.x);
+      }
+    }
+    gl_PointSize = vSize = clamp(size, 1.0, min(28.0, uGrow.y * base));
+  }`;
+// discs only where a point covers several pixels: a 1-2 px point trimmed to a circle loses the pixel whose centre falls in a
+// corner, which on a regular grid becomes a lattice of holes (screens without high-DPI)
+const GRID_FS = `in vec3 vC; in float vKeep, vSize; out highp vec4 outColor;
+  void main() { if (vKeep < 0.5) discard; vec2 d = gl_PointCoord - 0.5; if (vSize > 2.5 && dot(d, d) > 0.25) discard; outColor = vec4(vC * 0.92, 1.0); }`;
+// 3% further along the view ray: same picture, but single-view depth error no longer swallows hands resting on a surface
+const PUSH = new THREE.Matrix4().makeScale(1.03, 1.03, 1.03), tmpMV = new THREE.Matrix4();
+let gridGeo = null;   // the image's pixel grid (u, v), shared by the still and the context
+function pixelGrid(W, H) {
+  if (gridGeo && gridGeo.userData.W === W && gridGeo.userData.H === H) return gridGeo;
+  if (gridGeo) gridGeo.dispose();   // another image size (a clip still using it re-uploads it)
+  const uv = new Uint16Array(W * H * 2);
+  for (let v = 0, i = 0; v < H; v++) for (let u = 0; u < W; u++, i += 2) { uv[i] = u; uv[i + 1] = v; }
+  gridGeo = new THREE.BufferGeometry(); gridGeo.setAttribute("position", new THREE.BufferAttribute(uv, 2));
+  gridGeo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e4); gridGeo.userData = { W, H, shared: true };
+  return gridGeo;
+}
+function gridCloud(meta, dir, seed, depthTex, colorTex, map, colScale) {
+  const [W, H] = meta.image_size, K = meta.K;
+  const m = new THREE.ShaderMaterial({
+    glslVersion: THREE.GLSL3, vertexShader: GRID_VS, fragmentShader: GRID_FS,
+    uniforms: { uDepth: { value: depthTex }, uColor: { value: colorTex }, uK: { value: new THREE.Vector4(K[0][0], K[1][1], K[0][2], K[1][2]) }, uMap: { value: new THREE.Vector4(map[0], map[1], 1.04, 0) },
+      uImg: { value: new THREE.Vector2(W, H) }, uCol: { value: new THREE.Vector2(colScale[0], colScale[1]) }, uT: { value: stageMatrix(meta) }, uClip: { value: new THREE.Matrix4() }, uScale: { value: pointScale() },
+      uHalf: { value: new THREE.Vector2(renderer.domElement.width / 2, renderer.domElement.height / 2) }, uGrow: { value: new THREE.Vector2(Number(Q.get("gstep")) || 0.012, Number(Q.get("gmax")) || 2.5) }, uCut: { value: dir > 0 ? 0 : 1 }, uDir: { value: dir }, uFoot: { value: FOOT }, uSeed: { value: seed } },
+  });
+  pointMats.push(m);
+  const pts = new THREE.Points(pixelGrid(W, H), m); pts.frustumCulled = false;
+  pts.onBeforeRender = (r, s, cam) => m.uniforms.uClip.value.multiplyMatrices(cam.projectionMatrix, PUSH).multiply(tmpMV.multiplyMatrices(cam.matrixWorldInverse, pts.matrixWorld)).multiply(m.uniforms.uT.value);
+  return pts;
+}
+// OpenCV camera (metres) of frame M (rows: R row-major + t in mm; null = the frozen camera) -> stage: about the origin, y and z flipped
+function stageMatrix(meta, M) {
+  const o = meta.origin_mm, T = new THREE.Matrix4().makeScale(1, -1, -1).multiply(new THREE.Matrix4().makeTranslation(-o[0] / 1000, -o[1] / 1000, -o[2] / 1000));
+  return M ? T.multiply(new THREE.Matrix4().set(M[0], M[1], M[2], M[9] / 1000, M[3], M[4], M[5], M[10] / 1000, M[6], M[7], M[8], M[11] / 1000, 0, 0, 0, 1)) : T;
+}
+// export_web3d.pack_depth: gzip(all low bytes, then all high bytes) of each code minus its left neighbour -> uint16 codes
+async function unpackCodes(u8, w) {
+  const raw = new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer());
+  const n = raw.length >> 1, lo = raw.subarray(0, n), hi = raw.subarray(n), out = new Uint16Array(n);
+  for (let r = 0; r < n; r += w) { let acc = 0; for (let i = r; i < r + w; i++) { acc = (acc + (lo[i] | (hi[i] << 8))) & 0xffff; out[i] = acc; } }
+  return out;
+}
+function codeTable(c) { const lut = new Float32Array(65536), g = Math.log1p(c.eps); for (let k = 1; k < 65535; k++) lut[k] = c.z0 * Math.exp((k - 1) * g); return lut; }   // 0 and 65535 stay 0 = no point
+function depthTexture(data, w, h) { const t = new THREE.DataTexture(data, w, h, THREE.RedFormat, THREE.FloatType); t.needsUpdate = true; return t; }
+function colourTexture(img) { const t = new THREE.Texture(img); t.flipY = false; t.generateMipmaps = false; t.minFilter = THREE.LinearFilter; t.magFilter = THREE.LinearFilter; t.needsUpdate = true; return t; }
+// the context video's colour: an H.264 clip (frame i at i/30 s), decoded once by seeking to every frame; each frame goes to
+// onFrame as soon as it is in (returning false stops: the clip was replaced)
+async function videoFrames(bytes, n, fps, onFrame) {
+  const v = document.createElement("video");
+  v.muted = true; v.playsInline = true; v.preload = "auto";
+  v.style.cssText = "position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none";
+  document.body.appendChild(v);
+  const url = URL.createObjectURL(new Blob([bytes], { type: "video/mp4" }));
+  try {
+    await new Promise((res, rej) => { v.onloadeddata = res; v.onerror = () => rej(new Error("context video: " + (v.error ? v.error.message || v.error.code : "error"))); v.src = url; v.load(); });
+    for (let i = 0; i < n; i++) {
+      await new Promise(res => { v.onseeked = res; v.currentTime = (i + 0.5) / fps; });
+      if (onFrame(await createImageBitmap(v), i) === false) break;
+    }
+  } finally { v.onseeked = v.onloadeddata = v.onerror = null; v.removeAttribute("src"); v.load(); v.remove(); URL.revokeObjectURL(url); }
+}
+
+// ------------------------------------------------------------------ state
+let cur = null;           // loaded clip
+let fut = 0, playing = !reduce, view = "sway", swayT = 0;
+let st = { k: "obs", t: 0, u: 0, fut: 0 };   // what to show: phase, window time, progress within the phase
+let clk = 0, hold = 0;                         // standalone clock (seconds into the clip's own timeline)
+const root = new THREE.Group(); scene.add(root);
+const cv2three = (x, y, z) => new THREE.Vector3(x / 1000, -y / 1000, -z / 1000);
+
+function clearRoot() {
+  if (cur) { if (cur.ctx) cur.ctx.dispose(); cur.stillTex.forEach(t => { if (t.image && t.image.close) t.image.close(); t.dispose(); }); }
+  while (root.children.length) { const o = root.children.pop(); o.traverse(n => { if (n.geometry && !n.geometry.userData.shared) n.geometry.dispose(); if (n.material) [].concat(n.material).forEach(m => { const i = pointMats.indexOf(m); if (i >= 0) pointMats.splice(i, 1); m.dispose(); }); }); }
+}
+const blankTexture = () => new THREE.DataTexture(new Uint8Array(4), 1, 1);
+
+function build(key) {
+  const d = window.GTF3D[key], meta = d.meta, L = meta.layout;
+  const scene_ab = b64(d.scene), geom_ab = b64(d.geom);
+  clearRoot();
+  // the still: the frozen frame (forecasts) or the first frame (other tasks), hands and object removed, one point per pixel;
+  // its depth and colour decode asynchronously (tens of ms) and the cloud shows once both are in
+  const K = meta.K, o = meta.origin_mm, sc = meta.scene;
+  const stillPts = gridCloud(meta, 1, 7, blankTexture(), blankTexture(), [sc.stride, sc.offset], [1, 1]), stillMat = stillPts.material;
+  stillMat.uniforms.uCut.value = 1.01; stillPts.visible = false; root.add(stillPts);
+  decodeStill(meta, scene_ab).then(({ depth, bitmap }) => {
+    const tex = [depthTexture(depth, sc.grid[0], sc.grid[1]), colourTexture(bitmap)];
+    if (!cur || cur.key !== key) { bitmap.close && bitmap.close(); tex.forEach(t => t.dispose()); return; }
+    stillMat.uniforms.uDepth.value = tex[0]; stillMat.uniforms.uColor.value = tex[1]; cur.stillTex.push(...tex); cur.stillReady = true;
+  }).catch(err => { console.warn("still unavailable", err); });
+  // meshes
+  const ents = meta.entities, F = meta.times.length;
+  const faces = {}; ents.forEach(e => { const f = L.faces[e]; faces[e] = new Uint32Array(geom_ab.slice(f.offset, f.offset + f.count * 12)); });
+  let objLocal = null;
+  if (L.obj_local) { const a = new Float32Array(geom_ab.slice(L.obj_local.offset, L.obj_local.offset + L.obj_local.verts * 12)); objLocal = new Float32Array(a.length); for (let i = 0; i < a.length; i++) objLocal[i] = a[i] / 1000; }
+  const readHand = rec => new Int16Array(geom_ab.slice(rec.offset, rec.offset + rec.frames * rec.verts * 6));
+  const readPose = rec => {
+    const a = new Float32Array(geom_ab.slice(rec.offset, rec.offset + rec.frames * 48)), out = [];
+    const S = new THREE.Matrix4().makeScale(1, -1, -1);
+    for (let k = 0; k < rec.frames; k++) {
+      const r = a.subarray(12 * k, 12 * k + 12);
+      const m = new THREE.Matrix4().set(r[0], r[1], r[2], r[9] / 1000, r[3], r[4], r[5], r[10] / 1000, r[6], r[7], r[8], r[11] / 1000, 0, 0, 0, 1);
+      const m3 = S.clone().multiply(m);       // three = S * cv
+      const p = new THREE.Vector3(), qq = new THREE.Quaternion(), s = new THREE.Vector3(); m3.decompose(p, qq, s);
+      out.push({ p, q: qq });
+    }
+    return out;
+  };
+  const futures = L.futures.map(fr => { const g = {}; ents.forEach(e => { g[e] = e === "obj" ? readPose(fr.entities[e]) : readHand(fr.entities[e]); }); return g; });
+  const given = {}; ents.forEach(e => { given[e] = e === "obj" ? readPose(L.given[e]) : readHand(L.given[e]); });
+  const mats = {}, meshes = {};
+  ents.forEach(e => {
+    mats[e] = new THREE.MeshStandardMaterial({ color: new THREE.Color(meta.colors[e]), roughness: 0.52, metalness: 0.0, side: THREE.DoubleSide });
+    const geo = new THREE.BufferGeometry();
+    if (e === "obj") { geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(objLocal), 3)); }
+    else { geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(L.futures[0].entities[e].verts * 3), 3)); }
+    geo.setIndex(new THREE.BufferAttribute(faces[e], 1)); geo.computeVertexNormals();
+    const m = new THREE.Mesh(geo, mats[e]); m.matrixAutoUpdate = e !== "obj"; root.add(m); meshes[e] = m;
+  });
+  const ghostMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(meta.colors.obj || "#ff942e"), roughness: 0.6, transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide });
+  const ghosts = new THREE.Group(); root.add(ghosts);
+  const pathGroup = new THREE.Group(); root.add(pathGroup);
+  const video = meta.mode === "video", t0i = meta.t_freeze_index;
+  const showPath = !video;   // other tasks: a whole-window path loops into a scribble (the videos use a short fading trail instead)
+  const curves = showPath ? (meta.object_paths_mm || []).map(pp => new THREE.CatmullRomCurve3(pp.slice(t0i).map(([x, y, z]) => cv2three(x, y, z)))) : [];
+  if (!video) curves.forEach(c => { const g = new THREE.BufferGeometry().setFromPoints(c.getPoints(200)); pathGroup.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0xe9e1cf, transparent: true, opacity: 0.28 }))); });
+  cur = { key, meta, ents, F, futures, given, meshes, mats, ghosts, ghostMat, curves, tube: null, tubeSeg: 0, ghostTimes: [], objLocal, stillPts, stillMat, stillTex: [], stillReady: false, ctx: null, ctxFailed: false, video };
+  if (d.ctx && meta.ctx) decodeCtx(meta, b64(d.ctx)).then(c => { if (cur && cur.key === key) { cur.ctx = c; root.add(c.points); } else c.dispose(); }).catch(err => { console.warn("context video unavailable", err); if (cur && cur.key === key) cur.ctxFailed = true; });
+  setFuture(0, true);
+  // camera at the original viewpoint, looking down the principal axis; the orbit target on that axis at the object's depth
+  const fy = K[1][1], H = meta.image_size[1];
+  camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(H / 2 / fy)); camera.updateProjectionMatrix();
+  const camPos = new THREE.Vector3(-o[0] / 1000, o[1] / 1000, o[2] / 1000);
+  // home_zoom (>= 1): dolly back along the principal axis when the clip's motion leaves the original frame
+  cur.target = new THREE.Vector3(camPos.x, camPos.y, 0);
+  cur.home = cur.target.clone().add(camPos.clone().sub(cur.target).multiplyScalar(meta.home_zoom || 1));
+  camera.position.copy(cur.home); camera.up.set(0, 1, 0); camera.lookAt(cur.target);
+  controls.target.copy(cur.target); controls.minDistance = cur.home.distanceTo(cur.target) * 0.35; controls.maxDistance = cur.home.distanceTo(cur.target) * 2.6; controls.update();
+  resize();
+  $("#pipImg").src = `${BASE}/${key}/still.jpg`;
+  $("#pip .pl").textContent = video ? "First frame" : "Last observed frame";
+  cur.segs = timelineFor(meta);
+  cur.total = cur.segs.reduce((a, s) => a + s.d, 0);
+  drawBar();
+  $("#legend").innerHTML = ents.filter(e => !video || (meta.predicted || []).includes(e)).map(e => `<span><i style="background:${meta.colors[e]}"></i>${({ obj: "object", right: "right hand", left: "left hand" })[e]}</span>`).join("") + `<span><i style="background:#e8e2d2"></i>${video ? "given" : "observed"}</span>`;
+  clk = 0; hold = 0;
+}
+
+// ------------------------------------------------------------------ the still and the context video (forecasts)
+async function decodeStill(meta, ab) {
+  const sc = meta.scene, [w, h] = sc.grid;
+  const codes = await unpackCodes(new Uint8Array(ab, sc.depth[0], sc.depth[1]), w), lut = codeTable(sc.codes), depth = new Float32Array(w * h);
+  for (let i = 0; i < depth.length; i++) depth[i] = lut[codes[i]];
+  const bitmap = await createImageBitmap(new Blob([new Uint8Array(ab, sc.image[0], sc.image[1])], { type: sc.mime }));
+  return { depth, bitmap };
+}
+// per frame a half-resolution depth grid (code 0 = the reference grid's depth: the background stands still) and one frame of
+// the colour video; drawn on the full-resolution pixel grid like the still. Resolves with the first frame in: the rest keep
+// decoding in order (ready = frames in so far) and playback waits at the last one that is in
+async function decodeCtx(meta, ab) {
+  const c = meta.ctx, [gw, gh] = c.grid, n = gw * gh;
+  const codes = await unpackCodes(new Uint8Array(ab, c.depth[0], c.depth[1]), gw), lut = codeTable(c.codes), ref = codes.subarray(0, n);
+  const frames = [], depthTex = depthTexture(new Float32Array(n), gw, gh);
+  let colorTex = null;
+  const points = gridCloud(meta, -1, 11, depthTex, blankTexture(), [c.stride, c.offset], [gw / c.video_size[0], gh / c.video_size[1]]);
+  points.visible = false;
+  const mat = points.material, mats = c.mats.map(M => stageMatrix(meta, M));
+  const ctx = { points, mat, show, dispose, times: c.times, shown: -1, ready: 0, complete: false, disposed: false };
+  function show(f) {
+    const D = depthTex.image.data, fr = codes.subarray((f + 1) * n, (f + 2) * n);
+    for (let i = 0; i < n; i++) { const q = fr[i]; D[i] = lut[q === 0 ? ref[i] : q]; }
+    depthTex.needsUpdate = true; mat.uniforms.uT.value.copy(mats[f]);
+    if (!colorTex) { colorTex = colourTexture(frames[f]); mat.uniforms.uColor.value = colorTex; } else { colorTex.image = frames[f]; colorTex.needsUpdate = true; }
+  }
+  function dispose() { ctx.disposed = true; frames.forEach(b => b.close && b.close()); frames.length = 0; depthTex.dispose(); if (colorTex) colorTex.dispose(); }
+  let first;
+  const firstIn = new Promise(r => { first = r; });
+  videoFrames(new Uint8Array(ab, c.video[0], c.video[1]), c.frames, c.video_fps, bmp => {
+    if (ctx.disposed) { if (bmp.close) bmp.close(); return false; }
+    frames.push(bmp); ctx.ready = frames.length; if (ctx.ready === 1) first();
+    return true;
+  }).then(() => { ctx.complete = true; first(); }, err => { ctx.failed = err; ctx.complete = true; first(); });
+  await firstIn;
+  if (!ctx.ready) { dispose(); throw ctx.failed || new Error("context video: no frames"); }
+  return ctx;
+}
+
+function setFuture(k, quiet) {
+  if (!cur) return; fut = Math.min(k, cur.futures.length - 1);
+  const fs = $("#futs"); fs.innerHTML = "";
+  if (cur.futures.length > 1) cur.futures.forEach((_, i) => { const b = document.createElement("button"); b.textContent = `Future ${i + 1}`; b.setAttribute("aria-pressed", i === fut ? "true" : "false"); b.addEventListener("click", () => { setFuture(i); if (st.k !== "pred") clk = predStart(); }); fs.appendChild(b); });
+  if (cur.tube) { cur.tube.geometry.dispose(); cur.tube.material.dispose(); root.remove(cur.tube); cur.tube = null; }
+  if (cur.curves[fut]) {
+    const seg = 240, geo = new THREE.TubeGeometry(cur.curves[fut], seg, 0.0028, 8, false);
+    cur.tube = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: new THREE.Color(cur.meta.colors.obj || "#ff942e"), transparent: true, opacity: 0.85 })); cur.tubeSeg = seg; cur.tubeLens = cur.curves[fut].getLengths(600); root.add(cur.tube);
+  }
+  clearGhosts();
+  updateTicker();
+}
+function clearGhosts() { if (!cur) return; while (cur.ghosts.children.length) { const g = cur.ghosts.children.pop(); g.geometry.dispose(); } cur.ghostTimes = []; }
+function updateTicker() {
+  if (!cur) return; const c = CLIPS.find(c => c.key === cur.key), m = cur.meta;
+  const what = c ? c.what : `<b>${m.task.replace(/_/g, " ")}</b> &middot; ${m.skill}`;
+  $("#ticker").innerHTML = m.mode === "video" ? `${what} &middot; given in white, predicted in colour` : `${what} &middot; the model saw ${m.observed_s.toFixed(1)} s &middot; future ${fut + 1} of ${cur.futures.length}, sampled from 20`;
+}
+
+// ------------------------------------------------------------------ the clip's own timeline (standalone page) and the bar
+function timelineFor(m) {
+  const T = m.times[m.times.length - 1], s = [];
+  if (m.mode === "video") { s.push({ k: "play", d: T, t0: 0, rate: 1 }); s.push({ k: "end", d: 1.4, t: T }); return s; }
+  const c = m.ctx;
+  if (c) s.push({ k: "obs", d: m.observed_s - c.times[0], t0: c.times[0], rate: 1 }); else s.push({ k: "obs", d: 0.8, t0: m.t_freeze_s, rate: 0 });
+  s.push({ k: "beat", d: 0.7, t: m.t_freeze_s });
+  s.push({ k: "pred", d: T - m.t_freeze_s, t0: m.t_freeze_s, rate: 1 });
+  s.push({ k: "end", d: 1.4, t: T });
+  return s;
+}
+function predStart() { let a = 0; for (const s of cur.segs) { if (s.k === "pred") return a; a += s.d; } return 0; }
+function stateAtClock(c) {
+  let a = 0;
+  for (const s of cur.segs) {
+    if (c < a + s.d || s === cur.segs[cur.segs.length - 1]) { const u = Math.max(0, Math.min(1, (c - a) / s.d)); return { k: s.k, t: s.t !== undefined ? s.t : s.t0 + s.rate * (c - a), u, fut }; }
+    a += s.d;
+  }
+}
+function drawBar() {
+  const segs = cur.segs, tot = cur.total; let a = 0, obsEnd = 0, vidEnd = 0;
+  for (const s of segs) { if (s.k === "obs" || s.k === "beat") obsEnd = a + s.d; a += s.d; }
+  if (cur.meta.ctx) vidEnd = -cur.meta.ctx.times[0] / tot;
+  const pf = obsEnd / tot;
+  $("#segObs").style.width = (pf * 100).toFixed(2) + "%"; $("#segPred").style.left = (pf * 100).toFixed(2) + "%";
+  $("#labObs").textContent = cur.video ? "the clip" : (vidEnd > 0 ? "video · observed" : "observed");
+  $("#labPred").style.left = (pf * 100 + 1).toFixed(2) + "%"; $("#labPred").textContent = cur.video ? "" : "predicted";
+  if (cur.video) { $("#segObs").style.width = "0%"; $("#segPred").style.left = "0%"; }
+}
+
+// ------------------------------------------------------------------ per-frame geometry
+const tmpA = new THREE.Vector3(), tmpQ = new THREE.Quaternion();
+function frameAt(times, tt) { const F = times.length; if (tt <= times[0]) return [0, 0, 0]; if (tt >= times[F - 1]) return [F - 1, F - 1, 0]; let i = 1; while (times[i] < tt) i++; return [i - 1, i, (tt - times[i - 1]) / (times[i] - times[i - 1])]; }
+function applyPose(mesh, poses, i, j, u) { const a = poses[i], b = poses[j]; tmpA.copy(a.p).lerp(b.p, u); tmpQ.copy(a.q).slerp(b.q, u); mesh.matrix.compose(tmpA, tmpQ, new THREE.Vector3(1, 1, 1)); mesh.matrixWorldNeedsUpdate = true; }
+function applyHand(mesh, arr, nV, i, j, u) {
+  const p = mesh.geometry.attributes.position.array, oa = i * nV * 3, ob = j * nV * 3;
+  for (let v = 0; v < nV * 3; v += 3) {
+    const x = arr[oa + v] + (arr[ob + v] - arr[oa + v]) * u, y = arr[oa + v + 1] + (arr[ob + v + 1] - arr[oa + v + 1]) * u, z = arr[oa + v + 2] + (arr[ob + v + 2] - arr[oa + v + 2]) * u;
+    p[v] = x / 1000; p[v + 1] = -y / 1000; p[v + 2] = -z / 1000;
+  }
+  mesh.geometry.attributes.position.needsUpdate = true; mesh.geometry.computeVertexNormals(); mesh.geometry.computeBoundingSphere();
+}
+function render_state(s) {
+  const m = cur.meta, times = m.times, k = s.k, video = cur.video;
+  const context = !video && cur.ctx && (k === "pre" || k === "obs");
+  const beat = !video && k === "beat";
+  // clouds: the context video plays until the freeze, then dissolves into the still
+  if (cur.ctx) {
+    const c = cur.ctx;
+    if (context || (beat && s.u < 1)) {
+      let f = 0; const tt = context ? s.t : c.times[c.times.length - 1];
+      while (f + 1 < c.times.length && c.times[f + 1] <= tt + 1e-4) f++;
+      f = Math.min(f, c.ready - 1);
+      if (f !== c.shown) { c.show(f); c.shown = f; }
+      c.points.visible = true; c.mat.uniforms.uCut.value = beat ? s.u : 0;
+    } else c.points.visible = false;
+  }
+  cur.stillPts.visible = cur.stillReady && !context; cur.stillMat.uniforms.uCut.value = beat && cur.ctx ? s.u : 1.01;
+  const tt = (k === "pre" || k === "obs") && !video ? Math.max(0, Math.min(s.t, m.t_freeze_s)) : s.t;
+  const observed = !video && (k === "pre" || k === "obs" || k === "beat");
+  const [i, j, u] = frameAt(times, Math.max(0, tt));
+  cur.ents.forEach(e => {
+    const mesh = cur.meshes[e], slot = cur.ents.indexOf(e);
+    const present = m.presence[u < 0.5 ? i : j][slot];
+    mesh.visible = present && !context;
+    if (!mesh.visible) return;
+    if (video) {
+      const given = m.obs[u < 0.5 ? i : j][slot];
+      mesh.material.color.copy(given ? GIVEN : new THREE.Color(m.colors[e]));
+      if (e === "obj") applyPose(mesh, cur.futures[0].obj, i, j, u); else applyHand(mesh, cur.futures[0][e], 778, i, j, u);
+    } else if (observed) {
+      const gi = Math.min(i, m.t_freeze_index), gj = Math.min(j, m.t_freeze_index);
+      mesh.material.color.copy(GIVEN);
+      if (e === "obj") applyPose(mesh, cur.given.obj, Math.min(gi, cur.given.obj.length - 1), Math.min(gj, cur.given.obj.length - 1), u);
+      else applyHand(mesh, cur.given[e], 778, gi, gj, u);
+    } else {
+      mesh.material.color.set(m.colors[e]);
+      if (e === "obj") applyPose(mesh, cur.futures[fut].obj, i, j, u); else applyHand(mesh, cur.futures[fut][e], 778, i, j, u);
+    }
+  });
+  // onion copies of the object, every 0.75 s of prediction (forecasts)
+  if (!video && !observed && cur.meshes.obj && cur.meshes.obj.visible) {
+    const kk = Math.floor((tt - m.observed_s) / 0.75);
+    if (kk >= 1 && !cur.ghostTimes.includes(kk)) {
+      cur.ghostTimes.push(kk);
+      const g = new THREE.Mesh(cur.meshes.obj.geometry.clone(), cur.ghostMat); g.matrixAutoUpdate = false; g.matrix.copy(cur.meshes.obj.matrix); cur.ghosts.add(g);
+    }
+  }
+  if (cur.tube) {
+    // the tube is laid out by path length, and the object does not move at constant speed: draw it up to the length the
+    // object has covered by now (drawn by the share of TIME, the line ran behind a fast start and ahead of a slow one)
+    const L = cur.tubeLens, D = L.length - 1, N = times.length - m.t_freeze_index;
+    const tp = Math.max(0, Math.min(1, ((i - m.t_freeze_index) + u * (j - i)) / Math.max(1, N - 1))), x = tp * D, a = Math.floor(x), b = Math.min(D, a + 1);
+    const f = L[D] > 0 ? (L[a] + (L[b] - L[a]) * (x - a)) / L[D] : 0;
+    cur.tube.geometry.setDrawRange(0, Math.ceil(f * cur.tubeSeg) * 8 * 6); cur.tube.visible = video ? true : !observed;
+  }
+}
+function hud() {
+  const f = cur.total > 0 ? Math.min(1, clk / cur.total) : 0;
+  $("#fill").style.width = (100 * f).toFixed(2) + "%"; $("#head").style.left = (100 * f).toFixed(2) + "%";
+  $("#time").textContent = (st.t < 0 ? "−" : "") + Math.abs(st.t).toFixed(1) + " s";
+}
+
+// ------------------------------------------------------------------ views
+function setView(v) {
+  view = v; press($("#views"), [...$("#views").querySelectorAll("button")].find(b => b.dataset.v === v));
+  controls.enabled = v === "orbit";
+  if (v === "camera" && cur) { camera.position.copy(cur.home); camera.lookAt(cur.target); controls.target.copy(cur.target); }
+  if (v === "sway") swayT = 0;
+}
+const tellPage = msg => { if (EMBED && window.parent !== window) window.parent.postMessage(msg, "*"); };
+$("#views").querySelectorAll("button").forEach(b => b.addEventListener("click", () => { setView(b.dataset.v); tellPage({ type: "gtf3d-interact", v: b.dataset.v }); }));
+renderer.domElement.addEventListener("pointerdown", () => { if (view !== "orbit") setView("orbit"); tellPage({ type: "gtf3d-interact", v: "orbit" }); });
+renderer.domElement.addEventListener("wheel", () => { if (view !== "orbit") setView("orbit"); tellPage({ type: "gtf3d-interact", v: "orbit" }); }, { passive: true });
+function sway(dt) {
+  swayT += dt;
+  const off = cur.home.clone().sub(cur.target), r = off.length();
+  const az = THREE.MathUtils.degToRad(15) * Math.sin(swayT * 0.36), el = THREE.MathUtils.degToRad(5) * Math.sin(swayT * 0.25);
+  const sph = new THREE.Spherical().setFromVector3(off); sph.theta += az; sph.phi = Math.min(Math.PI - 0.05, Math.max(0.05, sph.phi - el)); sph.radius = r * (1 - 0.04 * (1 - Math.cos(swayT * 0.36)));
+  camera.position.copy(cur.target).add(new THREE.Vector3().setFromSpherical(sph)); camera.lookAt(cur.target);
+}
+
+// ------------------------------------------------------------------ transport (standalone page)
+const playBtn = $("#play");
+function setPlaying(p) { playing = p; playBtn.setAttribute("aria-label", p ? "Pause" : "Play"); $("#playIcon").innerHTML = p ? '<rect x="1.5" y="1" width="3" height="10" rx="1"/><rect x="7.5" y="1" width="3" height="10" rx="1"/>' : '<path d="M2 1 L11 6 L2 11 Z"/>'; }
+playBtn.addEventListener("click", () => setPlaying(!playing));
+window.addEventListener("keydown", e => { if (e.code === "Space") { e.preventDefault(); setPlaying(!playing); } });
+const bar = $("#bar");
+function scrub(ev) { if (!cur) return; const r = bar.getBoundingClientRect(), f = Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width)); const nc = f * cur.total; if (nc < clk) clearGhosts(); clk = nc; hold = 0; setPlaying(false); }
+bar.addEventListener("pointerdown", e => { bar.setPointerCapture(e.pointerId); scrub(e); bar.onpointermove = scrub; });
+bar.addEventListener("pointerup", () => { bar.onpointermove = null; });
+setPlaying(playing);
+
+// ------------------------------------------------------------------ clip loading
+const clipsEl = $("#clips");
+CLIPS.forEach((c, i) => { const b = document.createElement("button"); b.innerHTML = `${c.name}<small>${c.tag}</small>`; b.setAttribute("aria-pressed", "false"); b.dataset.key = c.key; b.addEventListener("click", () => { press(clipsEl, b); load(c.key); }); clipsEl.appendChild(b); });
+window.__gtfState = () => ({ key: cur && cur.key, t: st.t, k: st.k, u: st.u, fut, ctx: !!(cur && cur.ctx), ctxFrame: cur && cur.ctx ? cur.ctx.shown : -1, still: !!(cur && cur.stillReady), renders, onscreen });  // read-only probe for automated checks
+// capture mode (teaser renders): set the clock directly, render one frame, report back
+window.__gtfSeek = c => { if (!cur) return false; if (c < clk) clearGhosts(); clk = c; st = stateAtClock(clk); render_state(st); if (view === "sway") { swayT = c; sway(0); } renderer.render(scene, camera); return true; };
+// scripted camera for the teaser (capture mode): relative to the clip's home view (the original camera). az/el in degrees
+// about the orbit target, r scales the distance, f moves the target from the principal axis (f = 0: the home view is the
+// original camera) towards the object's mean position (f = 1); applied at the next __gtfSeek
+const focusOf = c => { const ps = c.futures[0].obj || [], v = new THREE.Vector3(); ps.forEach(q => v.add(q.p)); return ps.length ? v.multiplyScalar(1 / ps.length) : c.target.clone(); };
+window.__gtfCam = p => {
+  if (!cur) return false; view = "script";
+  if (!cur.focus) cur.focus = focusOf(cur);
+  const tgt = cur.target.clone().lerp(cur.focus, p.f || 0);
+  const sph = new THREE.Spherical().setFromVector3(cur.home.clone().sub(cur.target));
+  sph.theta += THREE.MathUtils.degToRad(p.az || 0); sph.phi = Math.min(Math.PI - 0.05, Math.max(0.05, sph.phi - THREE.MathUtils.degToRad(p.el || 0))); sph.radius *= p.r || 1;
+  camera.position.copy(tgt).add(new THREE.Vector3().setFromSpherical(sph)); camera.up.set(0, 1, 0); camera.lookAt(tgt);
+  return true;
+};
+window.__gtfFuture = k => { if (!cur) return false; if (k !== fut) setFuture(k, true); return cur.futures.length; };
+// distance (mm) between the head of the drawn path and the object's centre right now (automated check of the path timing)
+window.__gtfPathGap = () => { if (!cur || !cur.tube || !cur.tube.visible) return null; const c = cur.curves[fut], m = cur.meta, [i, j, u] = frameAt(m.times, Math.max(0, st.t)), N = m.times.length - m.t_freeze_index; const tp = Math.max(0, Math.min(1, ((i - m.t_freeze_index) + u * (j - i)) / Math.max(1, N - 1))); const head = c.getPointAt(Math.min(1, cur.tube.geometry.drawRange.count / (8 * 6) / cur.tubeSeg)); return head.distanceTo(c.getPoint(tp)) * 1000; };
+window.__gtfInfo = () => cur ? { key: cur.key, total: cur.total, segs: cur.segs, stillReady: cur.stillReady, ctxReady: !cur.meta.ctx || !!(cur.ctx && cur.ctx.complete), ctxFailed: cur.ctxFailed, futures: cur.futures.length, mode: cur.meta.mode || "forecast" } : null;
+window.__gtfLoad = key => new Promise(res => { const ok = () => { if (cur && cur.key === key && !loadingKey && cur.stillReady && (!cur.meta.ctx || (cur.ctx && cur.ctx.complete) || cur.ctxFailed)) res(window.__gtfInfo()); else setTimeout(ok, 50); }; if ((!cur || cur.key !== key) && loadingKey !== key) load(key); ok(); });
+function applyExternal(m) {
+  if (!cur || cur.key !== m.key) return;
+  if (m.future !== undefined && m.future !== fut && m.future < cur.futures.length) setFuture(m.future, true);
+  if (m.t < st.t - 1e-3 || (m.k === "pre" && st.k !== "pre")) clearGhosts();
+  st = { k: m.k || (m.t < cur.meta.observed_s ? "obs" : "pred"), t: m.t, u: m.u || 0, fut };
+}
+window.addEventListener("message", ev => {
+  const m = ev.data || {};
+  if (m.type === "gtf3d-state") { if (!cur || cur.key !== m.key) { pendingState = m; if (loadingKey !== m.key) load(m.key); } else applyExternal(m); }
+  else if (m.type === "gtf3d-view") { if (m.v !== view) setView(m.v); }
+});
+function load(key) {
+  loadingKey = key;
+  $("#loading").classList.remove("off");
+  const b = clipsEl.querySelector(`button[data-key="${key}"]`); if (b) press(clipsEl, b);
+  const go = () => { build(key); loadingKey = null; $("#loading").classList.add("off"); setView(view === "orbit" && !EMBED ? "sway" : view); if (pendingState && pendingState.key === key) { applyExternal(pendingState); pendingState = null; } if (EMBED && window.parent !== window) window.parent.postMessage({ type: "gtf3d-ready", key }, "*"); };
+  if (window.GTF3D[key]) return go();
+  const s = document.createElement("script"); s.src = `${BASE}/${key}/data.js`;
+  s.onerror = () => { $("#loading").textContent = "could not load " + key; };
+  document.addEventListener("gtf3d", function h(ev) { if (ev.detail === key) { document.removeEventListener("gtf3d", h); go(); } });
+  document.head.appendChild(s);
+}
+$("#pipBtn").addEventListener("click", () => $("#pip").classList.toggle("big"));
+
+// ------------------------------------------------------------------ loop
+const clock = new THREE.Clock();
+// embedded in the page, the stage stops drawing while it is scrolled out of view (inside an iframe the observer measures
+// against the page's viewport); the page's other videos and the visitor's CPU get that time back
+let onscreen = true, renders = 0;
+new IntersectionObserver(es => { onscreen = es[es.length - 1].isIntersecting; }).observe(document.documentElement);
+function loop() {
+  const dt = Math.min(clock.getDelta(), 0.1);
+  if (!onscreen) { requestAnimationFrame(loop); return; }
+  if (cur && !Q.has("capture")) {
+    if (!EMBED) {
+      if (playing) { if (clk >= cur.total) { hold += dt; if (hold > 0.6) { clk = 0; hold = 0; clearGhosts(); } } else clk = Math.min(cur.total, clk + dt); }
+      st = stateAtClock(clk); hud();
+    }
+    render_state(st);
+    if (view === "sway" && !reduce) sway(dt);
+    if (view === "orbit") controls.update();
+  }
+  if (!Q.has("capture")) { renderer.render(scene, camera); renders++; }
+  requestAnimationFrame(loop);
+}
+resize(); load(Q.get("clip") || CLIPS[0].key); loop();
+</script>
+</body>
+</html>
