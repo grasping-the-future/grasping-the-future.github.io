@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Grasping the Future</title>
 <meta name="description" content="Grasping the Future: a generative model of joint 3D hand-object motion that forecasts, completes and conditions interactions, trained on hand-object trajectories reconstructed from internet videos.">
+<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" href="favicon.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -74,11 +77,23 @@
   }
   /* wide screens: labels always, the index parked just left of the content column */
   @media (min-width: 1360px) { .rail { left: max(24px, env(safe-area-inset-left, 0px), calc((100vw - var(--wide)) / 2 - 150px)); } }
+  /* the index shows only while the page is being scrolled: the script sets .live on a scroll and takes it off half a second after
+     the scrolling stops (not while the pointer rests on the index). A keyboard focus inside it shows it as well (its own rule:
+     a browser without :has() must not drop the .live one; :focus-visible, not :focus-within, or a clicked link would hold it
+     open). The left gutter it needs stays reserved, so nothing shifts when it comes */
+  @media (min-width: 901px) {
+    .rail { opacity: 0; pointer-events: none; transform: translate(-8px, -50%);
+      transition: opacity .28s, transform .34s cubic-bezier(.2,.7,.2,1), background-color .35s, border-color .35s, box-shadow .35s; }
+    .rail.live { opacity: 1; pointer-events: auto; transform: translateY(-50%); }
+    .rail:has(:focus-visible) { opacity: 1; pointer-events: auto; transform: translateY(-50%); }
+  }
   /* phones and tablets: a small pill names the current section and opens the index as a dropdown */
   .toc-btn { display: none; position: fixed; z-index: 51; top: calc(12px + env(safe-area-inset-top, 0px)); right: max(12px, env(safe-area-inset-right, 0px));
     align-items: center; gap: 6px; height: 30px; padding: 0 10px 0 12px; border-radius: 999px; cursor: pointer; font-size: .78rem; font-weight: 500; color: var(--ink-2);
     border: 1px solid var(--line); background: rgba(250,247,239,.88); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: var(--shadow-sm);
-    transition: background-color .3s, color .3s, border-color .3s; }
+    opacity: 0; pointer-events: none; transition: opacity .28s, background-color .3s, color .3s, border-color .3s; }
+  .toc-btn.live { opacity: 1; pointer-events: auto; }  /* like the index: on only while the page is being scrolled (and while its dropdown is open) */
+  .toc-btn:focus-visible { opacity: 1; pointer-events: auto; }
   .toc-btn svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; transition: transform .2s; }
   .toc-btn[aria-expanded="true"] svg { transform: rotate(180deg); }
   .toc-btn.dark { background: rgba(26,31,20,.8); color: var(--stage-ink); border-color: rgba(236,235,220,.14); }
@@ -105,7 +120,7 @@
     header.hero .wrap > * { animation: rise .7s cubic-bezier(.22,.61,.36,1) both; }
     header.hero .wrap > :nth-child(2) { animation-delay: .08s; } header.hero .wrap > :nth-child(3) { animation-delay: .16s; }
     header.hero .wrap > :nth-child(4) { animation-delay: .22s; } header.hero .wrap > :nth-child(5) { animation-delay: .28s; }
-    header.hero .wrap > :nth-child(6) { animation-delay: .34s; } header.hero .wrap > :nth-child(7) { animation-delay: .4s; }
+    header.hero .wrap > :nth-child(6) { animation-delay: .34s; } header.hero .wrap > :nth-child(7) { animation-delay: .4s; } header.hero .wrap > :nth-child(8) { animation-delay: .46s; }
   }
   .emblem { width: min(250px, 62vw); height: auto; margin: 0 auto 6px; display: block; }
   h1.title { font-family: var(--serif); font-optical-sizing: auto; font-weight: 600; font-size: clamp(2.3rem, 6.2vw, 4.1rem); letter-spacing: -.022em; line-height: 1.02; margin: 0 0 10px; text-wrap: balance; }
@@ -113,7 +128,10 @@
   .authors { font-size: 1.16rem; font-weight: 500; line-height: 1.8; margin: 0 auto; max-width: 900px; text-wrap: balance; }
   .authors .nw, .affils .nw { white-space: nowrap; }
   .authors sup, .affils sup { font-size: .62em; color: var(--accent); margin-left: 1px; }
-  .affils { color: var(--ink-2); margin: 2px 0 20px; font-size: 1.02rem; }
+  .affils { color: var(--ink-2); margin: 2px 0 4px; font-size: 1.02rem; }
+  .equal { color: var(--muted); margin: 0 0 20px; font-size: .86rem; }
+  .star { color: var(--accent); font-weight: 700; font-size: 1.3em; line-height: 0; vertical-align: -.12em; margin-left: 1px; }
+  .equal .star { font-size: 1.45em; vertical-align: -.2em; margin: 0 3px 0 0; }
   .buttons { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
   .btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 19px; background: var(--ink); color: #f4efe3; text-decoration: none; border-radius: 999px; font-size: .9rem; font-weight: 500;
     box-shadow: 0 1px 2px rgba(41,39,31,.22); transition: transform .18s, background-color .18s, box-shadow .18s; }
@@ -151,6 +169,13 @@
     .vidwin { left: 0; bottom: 0; width: 100%; height: 100%; aspect-ratio: auto; border-radius: 0; border: 0; box-shadow: none; }
     .vidwin .vl { display: none; }
   }
+  .taskdef { margin: 0 0 12px; font-size: .98rem; line-height: 1.5; color: var(--stage-ink-2); max-width: 820px; }
+  .taskdef b { color: var(--stage-ink); font-weight: 600; }
+  .ckey { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: center; margin: 0 0 16px; font-family: var(--mono); font-size: .74rem; letter-spacing: .02em; color: var(--muted); }
+  .ckey.dark { margin: 12px 0 0; color: var(--stage-muted); }
+  .ckey span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .ckey i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .ckey .t { margin-right: 6px; }
   .stage-foot { display: flex; justify-content: space-between; gap: 10px 22px; flex-wrap: wrap; margin-top: 12px; font-size: .9rem; color: var(--stage-ink-2); }
   .stage-foot .what b { color: var(--stage-ink); font-weight: 600; }
   .stage-foot .kicker { font-family: var(--mono); font-size: .75rem; letter-spacing: .02em; color: var(--stage-muted); align-self: center; }
@@ -247,7 +272,6 @@
   .teaser-sec { padding-top: 40px; padding-bottom: 10px; }
   .teaser { border-radius: var(--r); overflow: hidden; background: var(--stage); box-shadow: var(--shadow-lg); aspect-ratio: 16 / 9; max-width: 100%; }
   .teaser video { display: block; width: 100%; height: 100%; object-fit: cover; }
-  .tcap { text-align: center; color: var(--ink-2); font-size: .95rem; margin: 12px 0 0; }
   /* model explainer (assets/js/model_anim.js) */
   .mx { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow-md); padding: 18px 20px 14px; display: grid; gap: 8px; }
   .mx-cap { display: flex; gap: 14px; align-items: baseline; min-height: 3.1em; }
@@ -378,8 +402,7 @@
 <nav class="rail" id="nav" aria-label="Sections">
   <ol id="navlinks">
     <li><a class="lk" href="#watch"><span class="tick"></span><span class="lab">Watch</span></a></li>
-    <li><a class="lk" href="#teaser"><span class="tick"></span><span class="lab">Teaser</span></a></li>
-    <li><a class="lk" href="#overview"><span class="tick"></span><span class="lab">Overview</span></a></li>
+    <li><a class="lk" href="#teaser"><span class="tick"></span><span class="lab">Overview</span></a></li>
     <li><a class="lk" href="#tasks"><span class="tick"></span><span class="lab">Tasks</span></a></li>
     <li><a class="lk" href="#futures"><span class="tick"></span><span class="lab">Futures</span></a></li>
     <li><a class="lk" href="#data"><span class="tick"></span><span class="lab">Data</span></a></li>
@@ -397,8 +420,9 @@
     <img class="emblem" src="assets/fig/emblem.webp" alt="A hand holding a carton, with its predicted future poses fading ahead of it">
     <h1 class="title">Grasping the Future</h1>
     <p class="subtitle">Joint 3D Hand&ndash;Object Forecasting from Internet Videos</p>
-    <p class="authors"><span class="nw">Rustin Soraki<sup>1</sup>,</span> <span class="nw">Matthew Wallingford<sup>1</sup>,</span> <span class="nw">Ryan Aby<sup>1</sup>,</span> <span class="nw">Brandon Chee<sup>1</sup>,</span> <span class="nw">Jason Ren<sup>2</sup>,</span> <span class="nw">Ali Farhadi<sup>1*</sup>,</span> <span class="nw">Homanga Bharadhwaj<sup>3*</sup>,</span> <span class="nw">Roozbeh Mottaghi<sup>4*</sup></span></p>
-    <p class="affils"><span class="nw"><sup>1</sup>University of Washington</span> &nbsp; <span class="nw"><sup>2</sup>University of North Carolina at Chapel Hill</span> &nbsp; <span class="nw"><sup>3</sup>Johns Hopkins University</span> &nbsp; <span class="nw"><sup>4</sup>Skild AI</span> &nbsp;&nbsp; <span class="nw"><sup>*</sup>Equal supervision</span></p>
+    <p class="authors"><span class="nw">Rustin Soraki<sup>1</sup>,</span> <span class="nw">Matthew Wallingford<sup>1</sup>,</span> <span class="nw">Ryan Aby<sup>1</sup>,</span> <span class="nw">Brandon Chee<sup>1</sup>,</span> <span class="nw">Jason Ren<sup>2</sup>,</span> <span class="nw">Ali Farhadi<sup>1</sup><span class="star">*</span>,</span> <span class="nw">Homanga Bharadhwaj<sup>3</sup><span class="star">*</span>,</span> <span class="nw">Roozbeh Mottaghi<sup>1</sup><span class="star">*</span></span></p>
+    <p class="affils"><span class="nw"><sup>1</sup>University of Washington</span> &nbsp; <span class="nw"><sup>2</sup>University of North Carolina at Chapel Hill</span> &nbsp; <span class="nw"><sup>3</sup>Johns Hopkins University</span></p>
+    <p class="equal"><span class="star">*</span>Equal supervision</p>
     <div class="buttons">
       <a class="btn" href="paper.pdf" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>Paper</a>
       <a class="btn" href="https://arxiv.org/abs/2611.12879" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>arXiv</a>
@@ -414,18 +438,20 @@
     <div class="stage-top">
       <div class="seg" id="heroClips" role="group" aria-label="Clip"></div>
       <div class="seg" id="heroMode" role="group" aria-label="Futures">
-        <button aria-pressed="true" data-mode="ghost">One future</button>
-        <button aria-pressed="false" data-mode="seq">Three futures</button>
+        <button aria-pressed="true" data-mode="ghost">One plausible future</button>
+        <button aria-pressed="false" data-mode="seq">Three plausible futures</button>
       </div>
       <div class="seg tools" role="group" aria-label="Views">
         <button class="tool" id="swapBtn" aria-pressed="false" title="Swap the 3D view and the camera video">&#x21C4; Swap</button>
         <a class="tool" href="watch3d.html" title="The 3D stage on its own page">Full screen &#x2197;</a>
       </div>
     </div>
+    <p class="taskdef" id="heroTask"></p>
     <div class="screen" id="screen">
       <iframe id="stage3d" title="The prediction in 3D. Drag to look around." data-src="watch3d.html?embed=1&amp;clip=action100m_future_prediction_spoon"></iframe>
       <div class="vidwin" id="vidwin"><video id="heroVideo" muted playsinline autoplay preload="auto"></video><span class="vl">Camera view</span></div>
     </div>
+    <p class="ckey dark"><span><i style="background:var(--obj)"></i>object</span><span><i style="background:var(--right)"></i>right hand</span><span><i style="background:var(--left)"></i>left hand</span><span class="t">in color: predicted by the model</span><span><i style="background:#f3efe2"></i>white: given to the model</span></p>
     <div class="stage-foot">
       <div class="what" id="heroWhat"></div>
       <div class="kicker">drag to look around &middot; the small video is the camera's view of the same moment</div>
@@ -435,8 +461,8 @@
 
 <section class="sec teaser-sec" id="teaser">
   <div class="wrap">
+    <h2 class="sh center">Overview</h2>
     <div class="teaser"><video id="teaserVideo" controls muted playsinline preload="none" poster="assets/teaser/teaser_poster.jpg" src="assets/teaser/teaser_1280.mp4"></video></div>
-    <p class="tcap">Forty seconds: forecasts in 3D, three possible futures, one clip asked seven questions, the data, and robot hands following a forecast.</p>
   </div>
 </section>
 
@@ -446,7 +472,7 @@
     <p class="eyebrow center">What is new</p>
     <div class="cards3">
       <div class="card"><span class="num">7 tasks</span><h3>One model</h3><p>Every task is the same problem: <strong>fill in the missing parts</strong> of one hand&ndash;object motion. One model, trained once, does all seven.</p></div>
-      <div class="card"><span class="num">62,562</span><h3>3D from internet video</h3><p>We turn everyday internet clips into 3D hand and object motion, and keep only the <strong>12%</strong> that pass our checks.</p></div>
+      <div class="card"><span class="num">62,562 clips</span><h3>3D from internet video</h3><p>We turn everyday internet clips into 3D hand and object motion, and keep only the <strong>12%</strong> that pass our checks.</p></div>
       <div class="card"><span class="num">73.8%</span><h3>Forecasts robots can follow</h3><p>A simulated robot hand carries out <strong>73.8%</strong> of our forecasts, moving the object along the predicted path.</p></div>
     </div>
   </div>
@@ -512,7 +538,7 @@
     <div class="funnel" aria-label="Fate of candidate clips"><div class="a"><span class="lg">36% fail action validation</span><span class="sm">36% no action</span></div><div class="b"><span class="lg">52% fail in extraction or at a quality gate</span><span class="sm">52% fail a gate</span></div><div class="c">12% kept</div></div>
     <div class="rejects" id="rejects"></div>
     <div class="stats">
-      <div class="stat"><span class="v">62,562</span><span class="k">trajectories from internet video</span></div>
+      <div class="stat"><span class="v">62,562</span><span class="k">internet clips reconstructed in 3D</span></div>
       <div class="stat"><span class="v">109,346</span><span class="k">five-second training windows</span></div>
       <div class="stat"><span class="v">+8</span><span class="k">motion-capture datasets</span></div>
     </div>
@@ -538,7 +564,7 @@
   <div class="wrap">
     <p class="eyebrow">Results</p>
     <h2 class="sh">Closer to what actually happened.</h2>
-    <p class="sdesc">Errors in millimetres on our benchmark of 331 five-second windows: 256 from motion capture and 75 from internet video. Each method runs on its own inputs, and every prediction is scored with the same code.</p>
+    <p class="sdesc">Errors in millimeters on our benchmark of 331 five-second windows: 256 from motion capture and 75 from internet video. Each method runs on its own inputs, and every prediction is scored with the same code.</p>
     <div class="charts">
       <div class="chartcard">
         <h3>Compared with released forecasters</h3>
@@ -575,17 +601,18 @@
 <section class="sec" id="gallery">
   <div class="wrap">
     <p class="eyebrow">Gallery</p>
-    <h2 class="sh">More clips.</h2>
+    <h2 class="sh">More qualitative results of predictions.</h2>
     <div class="gtools">
       <div class="chips" id="galSrc" role="group" aria-label="Source">
         <button class="chip" aria-pressed="true" data-src="action100m">Internet video</button>
         <button class="chip" aria-pressed="false" data-src="mocap">Motion capture</button>
       </div>
       <div class="gseg" id="galMode" role="group" aria-label="View">
-        <button aria-pressed="true" data-mode="ghost">One future</button>
-        <button aria-pressed="false" data-mode="seq">Three futures</button>
+        <button aria-pressed="true" data-mode="ghost">One plausible future</button>
+        <button aria-pressed="false" data-mode="seq">Three plausible futures</button>
       </div>
     </div>
+    <p class="ckey"><span><i style="background:var(--obj)"></i>object</span><span><i style="background:var(--right)"></i>right hand</span><span><i style="background:var(--left)"></i>left hand</span><span class="t">in color: predicted by the model</span><span><i style="background:#fff;box-shadow:inset 0 0 0 1px var(--line)"></i>white: given to the model</span></p>
     <div class="ggrid" id="galGrid"></div>
   </div>
 </section>
@@ -617,10 +644,10 @@
   const el = (tag, attrs = {}, kids = []) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === "text") e.textContent = v; else if (k === "html") e.innerHTML = v; else e.setAttribute(k, v); } kids.forEach(k => e.appendChild(k)); return e; };
   const press = (group, btn) => group.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b === btn ? "true" : "false"));
 
-  // ---------------- section rail: scrollspy, a glass that follows the background behind it, phone dropdown ----------------
+  // ---------------- section rail: on only while scrolling, scrollspy, a glass that follows the background behind it, phone dropdown ----------------
   const nav = $("#nav"), tocBtn = $("#tocBtn"), tocCur = $("#tocCur"), stageBand = $("#watch");
   const links = [...document.querySelectorAll("#navlinks a")];
-  const ALIAS = { abstract: "overview", top: null };  // the abstract reads as part of the overview; the title block has no entry
+  const ALIAS = { overview: "teaser", abstract: "teaser", top: null };  // the teaser, the summary and the abstract read as one overview; the title block has no entry
   const desk = window.matchMedia("(min-width: 901px)");
   function setActive(id) {
     let on = null;
@@ -629,7 +656,17 @@
   }
   const spy = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) setActive(e.target.id in ALIAS ? ALIAS[e.target.id] : e.target.id); }), { rootMargin: "-45% 0px -50% 0px" });
   [...links.map(a => a.getAttribute("href").slice(1)), ...Object.keys(ALIAS)].forEach(id => { const s = document.getElementById(id); if (s) spy.observe(s); });
-  // the glass (and the corner buttons) turns dark while most of the index sits over the dark stage
+  // the index (and the phone's corner pill) shows only while the page is being scrolled: every scroll event turns it on, and it
+  // goes REST_MS after the last one. It stays while the pointer rests on it or the phone's dropdown is open (and, in CSS, while
+  // the keyboard focus is inside it). A touch screen has no pointer to rest on it, so there it waits longer for the tap
+  const canHover = window.matchMedia("(hover: hover)"), REST_MS = { hover: 500, touch: 2000 };
+  const setToc = open => { nav.classList.toggle("open", open); tocBtn.setAttribute("aria-expanded", open ? "true" : "false"); };
+  const setLive = on => { nav.classList.toggle("live", on); tocBtn.classList.toggle("live", on); };
+  const held = () => nav.classList.contains("open") || (canHover.matches && (nav.matches(":hover") || tocBtn.matches(":hover")));
+  let restTimer = 0;
+  function rest() { clearTimeout(restTimer); restTimer = setTimeout(() => { if (held()) rest(); else setLive(false); }, canHover.matches ? REST_MS.hover : REST_MS.touch); }
+  const wake = () => { setLive(true); rest(); };
+  // its glass turns dark while most of it sits over the dark stage
   let shading = false;
   function shade() {
     shading = false;
@@ -638,9 +675,8 @@
     tocBtn.classList.toggle("dark", over(tocBtn));
   }
   const queueShade = () => { if (!shading) { shading = true; requestAnimationFrame(shade); } };
-  window.addEventListener("scroll", queueShade, { passive: true }); window.addEventListener("resize", queueShade); shade();
-  const setToc = open => { nav.classList.toggle("open", open); tocBtn.setAttribute("aria-expanded", open ? "true" : "false"); };
-  tocBtn.addEventListener("click", e => { e.stopPropagation(); setToc(!nav.classList.contains("open")); });
+  window.addEventListener("scroll", () => { wake(); queueShade(); }, { passive: true }); window.addEventListener("resize", queueShade); shade();
+  tocBtn.addEventListener("click", e => { e.stopPropagation(); setToc(!nav.classList.contains("open")); rest(); });
   nav.addEventListener("click", e => { if (e.target.closest("a")) setToc(false); });
   document.addEventListener("click", e => { if (nav.classList.contains("open") && !nav.contains(e.target)) setToc(false); });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && nav.classList.contains("open")) { setToc(false); tocBtn.focus(); } });
@@ -653,7 +689,6 @@
   const HERO = [
     { key: "action100m_future_prediction_spoon", name: "Spoon", task: "Forecast", what: "internet video &middot; scraping meat from a bowl into a pot", n: 0 },
     { key: "action100m_temporal_infilling_aloe", name: "Aloe leaf", task: "Infill", what: "internet video &middot; lowering an aloe leaf to peel it" },
-    { key: "mocap_future_prediction_092", name: "Bowl", task: "Forecast", what: "motion capture &middot; skimming with a bowl" },
     { key: "action100m_object_to_hand_057", name: "Cup", task: "Object &rarr; hands", what: "internet video &middot; pouring from a measuring cup" },
     { key: "action100m_future_prediction_glassbowl", name: "Glass bowl", task: "Forecast", what: "internet video &middot; holding up a glass bowl" },
     { key: "action100m_goal_infilling_lentils", name: "Lentils", task: "Goal", what: "internet video &middot; pouring lentils into a cooker" },
@@ -662,16 +697,26 @@
   ];
   // frame-exact phases of each locked video: pre = lead-in before the
   // window, obs = observed, beat = the freeze, pred = a future playing, hold / fade / end = a future's last pose, play = video_v2
-  const SYNC = {"action100m_future_prediction_spoon":{"ghost":{"fps":30.0,"segs":[{"f0":0,"f1":46,"k":"pre","t0":-1.52,"step":0.03333},{"f0":46,"f1":60,"k":"obs","t0":0.01333,"step":0.03333},{"f0":60,"f1":81,"k":"beat","t":0.4},{"f0":81,"f1":216,"k":"pred","fut":0,"t0":0.43333,"step":0.03333},{"f0":216,"f1":252,"k":"end","fut":0,"t":4.9}]},"seq":{"fps":30.0,"segs":[{"f0":0,"f1":46,"k":"pre","t0":-1.52,"step":0.03333},{"f0":46,"f1":60,"k":"obs","t0":0.01333,"step":0.03333},{"f0":60,"f1":81,"k":"beat","t":0.4},{"f0":81,"f1":148,"k":"pred","fut":0,"t0":0.46667,"step":0.06667},{"f0":148,"f1":166,"k":"hold","fut":0,"t":4.86667},{"f0":166,"f1":176,"k":"fade","fut":0,"t":4.86667},{"f0":176,"f1":243,"k":"pred","fut":1,"t0":0.46667,"step":0.06667},{"f0":243,"f1":261,"k":"hold","fut":1,"t":4.86667},{"f0":261,"f1":271,"k":"fade","fut":1,"t":4.86667},{"f0":271,"f1":338,"k":"pred","fut":2,"t0":0.46667,"step":0.06667},{"f0":338,"f1":374,"k":"end","fut":2,"t":4.86667}]}},"action100m_temporal_infilling_aloe":{"video":{"fps":12.5,"segs":[{"f0":0,"f1":63,"k":"play","t0":0.0,"step":0.08},{"f0":63,"f1":78,"k":"end","t":4.96}]}},"mocap_future_prediction_092":{"ghost":{"fps":30.0,"segs":[{"f0":0,"f1":18,"k":"obs","t0":0.0,"step":0.0},{"f0":18,"f1":33,"k":"obs","t0":0.0,"step":0.03333},{"f0":33,"f1":54,"k":"beat","t":0.4667},{"f0":54,"f1":189,"k":"pred","fut":0,"t0":0.50003,"step":0.03333},{"f0":189,"f1":225,"k":"end","fut":0,"t":4.9667}]},"seq":{"fps":30.0,"segs":[{"f0":0,"f1":18,"k":"obs","t0":0.0,"step":0.0},{"f0":18,"f1":33,"k":"obs","t0":0.0,"step":0.03333},{"f0":33,"f1":54,"k":"beat","t":0.4667},{"f0":54,"f1":121,"k":"pred","fut":0,"t0":0.53337,"step":0.06667},{"f0":121,"f1":139,"k":"hold","fut":0,"t":4.93337},{"f0":139,"f1":149,"k":"fade","fut":0,"t":4.93337},{"f0":149,"f1":216,"k":"pred","fut":1,"t0":0.53337,"step":0.06667},{"f0":216,"f1":234,"k":"hold","fut":1,"t":4.93337},{"f0":234,"f1":244,"k":"fade","fut":1,"t":4.93337},{"f0":244,"f1":311,"k":"pred","fut":2,"t0":0.53337,"step":0.06667},{"f0":311,"f1":347,"k":"end","fut":2,"t":4.93337}]}},"action100m_object_to_hand_057":{"video":{"fps":10.0,"segs":[{"f0":0,"f1":49,"k":"play","t0":0.0,"step":0.1},{"f0":49,"f1":61,"k":"end","t":4.8}]}},"action100m_future_prediction_glassbowl":{"ghost":{"fps":30.0,"segs":[{"f0":0,"f1":18,"k":"obs","t0":0.0,"step":0.0},{"f0":18,"f1":34,"k":"obs","t0":0.0,"step":0.03333},{"f0":34,"f1":55,"k":"beat","t":0.401},{"f0":55,"f1":191,"k":"pred","fut":0,"t0":0.43433,"step":0.03333},{"f0":191,"f1":227,"k":"end","fut":0,"t":4.93433}]},"seq":{"fps":30.0,"segs":[{"f0":0,"f1":18,"k":"obs","t0":0.0,"step":0.0},{"f0":18,"f1":34,"k":"obs","t0":0.0,"step":0.03333},{"f0":34,"f1":55,"k":"beat","t":0.401},{"f0":55,"f1":123,"k":"pred","fut":0,"t0":0.46767,"step":0.06667},{"f0":123,"f1":141,"k":"hold","fut":0,"t":4.93433},{"f0":141,"f1":151,"k":"fade","fut":0,"t":4.93433},{"f0":151,"f1":219,"k":"pred","fut":1,"t0":0.46767,"step":0.06667},{"f0":219,"f1":237,"k":"hold","fut":1,"t":4.93433},{"f0":237,"f1":247,"k":"fade","fut":1,"t":4.93433},{"f0":247,"f1":315,"k":"pred","fut":2,"t0":0.46767,"step":0.06667},{"f0":315,"f1":351,"k":"end","fut":2,"t":4.93433}]}},"action100m_goal_infilling_lentils":{"video":{"fps":12.5,"segs":[{"f0":0,"f1":59,"k":"play","t0":0.0,"step":0.08},{"f0":59,"f1":74,"k":"end","t":4.32}]}},"mocap_future_prediction_108":{"ghost":{"fps":30.0,"segs":[{"f0":0,"f1":45,"k":"pre","t0":-1.5,"step":0.03333},{"f0":45,"f1":60,"k":"obs","t0":0.0,"step":0.03333},{"f0":60,"f1":81,"k":"beat","t":0.4667},{"f0":81,"f1":216,"k":"pred","fut":0,"t0":0.50003,"step":0.03333},{"f0":216,"f1":252,"k":"end","fut":0,"t":4.9667}]},"seq":{"fps":30.0,"segs":[{"f0":0,"f1":45,"k":"pre","t0":-1.5,"step":0.03333},{"f0":45,"f1":60,"k":"obs","t0":0.0,"step":0.03333},{"f0":60,"f1":81,"k":"beat","t":0.4667},{"f0":81,"f1":148,"k":"pred","fut":0,"t0":0.53337,"step":0.06667},{"f0":148,"f1":166,"k":"hold","fut":0,"t":4.93337},{"f0":166,"f1":176,"k":"fade","fut":0,"t":4.93337},{"f0":176,"f1":243,"k":"pred","fut":1,"t0":0.53337,"step":0.06667},{"f0":243,"f1":261,"k":"hold","fut":1,"t":4.93337},{"f0":261,"f1":271,"k":"fade","fut":1,"t":4.93337},{"f0":271,"f1":338,"k":"pred","fut":2,"t0":0.53337,"step":0.06667},{"f0":338,"f1":374,"k":"end","fut":2,"t":4.93337}]}},"action100m_hand_to_object_jar":{"video":{"fps":9.99,"segs":[{"f0":0,"f1":49,"k":"play","t0":0.0,"step":0.1001},{"f0":49,"f1":61,"k":"end","t":4.8048}]}}};
+  const SYNC = {"action100m_future_prediction_spoon":{"ghost":{"fps":30.0,"segs":[{"f0":0,"f1":46,"k":"pre","t0":-1.52,"step":0.03333},{"f0":46,"f1":60,"k":"obs","t0":0.01333,"step":0.03333},{"f0":60,"f1":81,"k":"beat","t":0.4},{"f0":81,"f1":216,"k":"pred","fut":0,"t0":0.43333,"step":0.03333},{"f0":216,"f1":252,"k":"end","fut":0,"t":4.9}]},"seq":{"fps":30.0,"segs":[{"f0":0,"f1":46,"k":"pre","t0":-1.52,"step":0.03333},{"f0":46,"f1":60,"k":"obs","t0":0.01333,"step":0.03333},{"f0":60,"f1":81,"k":"beat","t":0.4},{"f0":81,"f1":148,"k":"pred","fut":0,"t0":0.46667,"step":0.06667},{"f0":148,"f1":166,"k":"hold","fut":0,"t":4.86667},{"f0":166,"f1":176,"k":"fade","fut":0,"t":4.86667},{"f0":176,"f1":243,"k":"pred","fut":1,"t0":0.46667,"step":0.06667},{"f0":243,"f1":261,"k":"hold","fut":1,"t":4.86667},{"f0":261,"f1":271,"k":"fade","fut":1,"t":4.86667},{"f0":271,"f1":338,"k":"pred","fut":2,"t0":0.46667,"step":0.06667},{"f0":338,"f1":374,"k":"end","fut":2,"t":4.86667}]}},"action100m_temporal_infilling_aloe":{"video":{"fps":12.5,"segs":[{"f0":0,"f1":63,"k":"play","t0":0.0,"step":0.08},{"f0":63,"f1":78,"k":"end","t":4.96}]}},"action100m_object_to_hand_057":{"video":{"fps":10.0,"segs":[{"f0":0,"f1":49,"k":"play","t0":0.0,"step":0.1},{"f0":49,"f1":61,"k":"end","t":4.8}]}},"action100m_future_prediction_glassbowl":{"ghost":{"fps":30.0,"segs":[{"f0":0,"f1":18,"k":"obs","t0":0.0,"step":0.0},{"f0":18,"f1":34,"k":"obs","t0":0.0,"step":0.03333},{"f0":34,"f1":55,"k":"beat","t":0.401},{"f0":55,"f1":191,"k":"pred","fut":0,"t0":0.43433,"step":0.03333},{"f0":191,"f1":227,"k":"end","fut":0,"t":4.93433}]},"seq":{"fps":30.0,"segs":[{"f0":0,"f1":18,"k":"obs","t0":0.0,"step":0.0},{"f0":18,"f1":34,"k":"obs","t0":0.0,"step":0.03333},{"f0":34,"f1":55,"k":"beat","t":0.401},{"f0":55,"f1":123,"k":"pred","fut":0,"t0":0.46767,"step":0.06667},{"f0":123,"f1":141,"k":"hold","fut":0,"t":4.93433},{"f0":141,"f1":151,"k":"fade","fut":0,"t":4.93433},{"f0":151,"f1":219,"k":"pred","fut":1,"t0":0.46767,"step":0.06667},{"f0":219,"f1":237,"k":"hold","fut":1,"t":4.93433},{"f0":237,"f1":247,"k":"fade","fut":1,"t":4.93433},{"f0":247,"f1":315,"k":"pred","fut":2,"t0":0.46767,"step":0.06667},{"f0":315,"f1":351,"k":"end","fut":2,"t":4.93433}]}},"action100m_goal_infilling_lentils":{"video":{"fps":12.5,"segs":[{"f0":0,"f1":59,"k":"play","t0":0.0,"step":0.08},{"f0":59,"f1":74,"k":"end","t":4.32}]}},"mocap_future_prediction_108":{"ghost":{"fps":30.0,"segs":[{"f0":0,"f1":45,"k":"pre","t0":-1.5,"step":0.03333},{"f0":45,"f1":60,"k":"obs","t0":0.0,"step":0.03333},{"f0":60,"f1":81,"k":"beat","t":0.4667},{"f0":81,"f1":216,"k":"pred","fut":0,"t0":0.50003,"step":0.03333},{"f0":216,"f1":252,"k":"end","fut":0,"t":4.9667}]},"seq":{"fps":30.0,"segs":[{"f0":0,"f1":45,"k":"pre","t0":-1.5,"step":0.03333},{"f0":45,"f1":60,"k":"obs","t0":0.0,"step":0.03333},{"f0":60,"f1":81,"k":"beat","t":0.4667},{"f0":81,"f1":148,"k":"pred","fut":0,"t0":0.53337,"step":0.06667},{"f0":148,"f1":166,"k":"hold","fut":0,"t":4.93337},{"f0":166,"f1":176,"k":"fade","fut":0,"t":4.93337},{"f0":176,"f1":243,"k":"pred","fut":1,"t0":0.53337,"step":0.06667},{"f0":243,"f1":261,"k":"hold","fut":1,"t":4.93337},{"f0":261,"f1":271,"k":"fade","fut":1,"t":4.93337},{"f0":271,"f1":338,"k":"pred","fut":2,"t0":0.53337,"step":0.06667},{"f0":338,"f1":374,"k":"end","fut":2,"t":4.93337}]}},"action100m_hand_to_object_jar":{"video":{"fps":9.99,"segs":[{"f0":0,"f1":49,"k":"play","t0":0.0,"step":0.1001},{"f0":49,"f1":61,"k":"end","t":4.8048}]}}};
   const IDLE_MS = 10000;   // after this long without input, autoplay resumes at the end of the current clip
   let heroIdx = 0, heroMode = "ghost", heroSeen = true, heroAuto = true, lastInput = 0;
   const hv = $("#heroVideo"), hc = $("#heroClips"), hm = $("#heroMode"), scr = $("#screen"), f3 = $("#stage3d");
   const desktop = window.matchMedia("(min-width: 761px)").matches;
   if (desktop) f3.src = f3.dataset.src; else f3.remove();
   hv.loop = false;
+  // every task label the clips carry, defined where it first appears (label: definition)
+  const TASK_DEF = {
+    "Forecast": "the model sees the first half second of both hands and the object, and predicts the next 4.5 s.",
+    "Infill": "the model is given the start and the end of the motion, and predicts the middle.",
+    "Hands &rarr; object": "the model is given how the hands move, and predicts how the object moves.",
+    "Object &rarr; hands": "the model is given how the object moves, and predicts how the hands move.",
+    "Goal": "the model is given the first and the last frame, and predicts everything between.",
+    "Goal for the hands": "the model is given the first frame and where the hands end up, and predicts the rest.",
+    "Goal for the object": "the model is given the first frame and where the object ends up, and predicts the rest.",
+  };
   const isForecast = c => !!SYNC[c.key].ghost;
   function takeControl() { heroAuto = false; lastInput = performance.now(); hv.loop = true; }
-  HERO.forEach((c, i) => { const b = el("button", { "aria-pressed": i === 0 ? "true" : "false", html: `${c.name}<small>${c.task}</small>` }); b.addEventListener("click", () => { takeControl(); heroIdx = i; setHero(); }); hc.appendChild(b); });
+  HERO.forEach((c, i) => { const b = el("button", { "aria-pressed": i === 0 ? "true" : "false", title: c.task.replace("&rarr;", "\u2192") + ": " + (c.def || TASK_DEF[c.task]), html: `${c.name}<small>${c.task}</small>` }); b.addEventListener("click", () => { takeControl(); heroIdx = i; setHero(); }); hc.appendChild(b); });
   hm.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { if (b.disabled) return; takeControl(); heroMode = b.dataset.mode; setHero(); }));
   $("#swapBtn").addEventListener("click", e => { takeControl(); const on = !scr.classList.contains("swapped"); scr.classList.toggle("swapped", on); e.currentTarget.setAttribute("aria-pressed", on ? "true" : "false"); });
   $("#vidwin").addEventListener("pointerdown", takeControl);
@@ -683,8 +728,9 @@
     hm.querySelectorAll("button").forEach(b => { b.disabled = !fc && b.dataset.mode === "seq"; b.setAttribute("aria-pressed", (fc ? b.dataset.mode === heroMode : b.dataset.mode === "ghost") ? "true" : "false"); });
     hv.poster = V + dir + c.key + ".jpg"; hv.src = V + dir + c.key + ".mp4";
     const p = hv.play(); if (p && p.catch) p.catch(() => {});
-    const tail = !fc ? "given in white, predicted in colour" : heroMode === "seq" ? (c.n === 0 ? "three futures, 2&times; speed" : "three of 20 futures, 2&times; speed") : (c.n === 0 ? "one future" : "one of 20 futures");
-    $("#heroWhat").innerHTML = `<b>${c.task}</b> &middot; ${c.what} &middot; ${tail}`;
+    const tail = !fc ? "given in white, predicted in color" : heroMode === "seq" ? (c.n === 0 ? "three futures, 2&times; speed" : "three of 20 futures, 2&times; speed") : "most likely future";
+    $("#heroTask").innerHTML = `<b>${c.task}:</b> ${c.def || TASK_DEF[c.task]}`;
+    $("#heroWhat").innerHTML = `<b>${c.name}</b> &middot; ${c.what} &middot; ${tail}`;
   }
   function next() {
     heroIdx = (heroIdx + 1) % HERO.length;
@@ -843,12 +889,12 @@
   new IntersectionObserver((es, o) => es.forEach(e => { if (e.isIntersecting) { e.target.querySelectorAll(".fill").forEach(f => f.style.width = f.dataset.w + "%"); o.unobserve(e.target); } }), { threshold: 0.3 }).observe(rr);
 
   // robot replays
-  const ROBOT = [  // stiff-contact replays: key = episode_seed, err = mean object error (mm), vis = max visible finger overlap (mm)
-    { key: "ep082_s2", name: "Glass", tag: "Action100M", hands: 2, what: "<b>Internet video.</b> Holding a glass in both hands.", err: 11.6, vis: 1.4 },
-    { key: "ep108_s2", name: "Basket", tag: "Action100M", hands: 2, what: "<b>Internet video.</b> Holding up a basket with both hands.", err: 12.0, vis: 1.3 },
-    { key: "ep137_s2", name: "Tape roll", tag: "OakInk2", hands: 2, what: "<b>Motion capture (OakInk2).</b> Turning a roll of tape with both hands.", err: 3.6, vis: 0.0 },
+  const ROBOT = [  // stiff-contact replays: key = episode_seed, err = mean object error (mm), vis = deepest finger overlap over the clip (mm): the larger of the visible-mesh and the collision-shape overlap
+    { key: "ep082_s0", name: "Glass", tag: "Action100M", hands: 2, what: "<b>Internet video.</b> Holding a glass in both hands.", err: 5.5, vis: 1.0 },
+    { key: "ep076_s0", name: "Plant pot", tag: "Action100M", hands: 1, what: "<b>Internet video.</b> Carrying a plant pot with the left hand.", err: 14.9, vis: 2.1 },
+    { key: "ep095_s0", name: "Tray", tag: "Action100M", hands: 2, what: "<b>Internet video.</b> Turning a perforated tray with both hands.", err: 3.0, vis: 0.9 },
+    { key: "ep137_s0", name: "Tape roll", tag: "OakInk2", hands: 2, what: "<b>Motion capture (OakInk2).</b> Turning a roll of tape with both hands.", err: 4.7, vis: 0.9 },
     { key: "ep071_s0", name: "Milk carton", tag: "HOT3D", hands: 2, what: "<b>Motion capture (HOT3D).</b> Holding a milk carton with both hands.", err: 11.7, vis: 2.0 },
-    { key: "ep148_s1", name: "Lint roller", tag: "TACO", hands: 2, what: "<b>Motion capture (TACO).</b> Picking up a lint roller to clean a pan.", err: 9.9, vis: 0.0 },
     { key: "ep044_s1", name: "Mustard", tag: "DexYCB", hands: 1, what: "<b>Motion capture (DexYCB).</b> Lifting a mustard bottle with the left hand.", err: 8.7, vis: 1.5 },
   ];
   const rv = $("#robotVideo"), rc = $("#robotChips");
@@ -865,7 +911,7 @@
 
   // ---------------- gallery ----------------
   const GAL = {
-    action100m: [["brush", "Brush", "brushing oil around a bowl"], ["book", "Book", "showing a book"], ["foamstrip", "Foam strip", "folding a foam strip"], ["batter", "Mixing bowl", "holding a bowl of batter over a pot", "hand_to_object", "Hands &rarr; object"], ["bowl", "Bowl", "pouring from a bowl", "object_to_hand", "Object &rarr; hands"], ["paper", "Paper", "folding origami paper", "object_to_hand", "Object &rarr; hands"], ["tile", "Tile", "spreading glue on a painted tile", "object_to_hand", "Object &rarr; hands"], ["controller", "Controller", "pointing at a temperature controller", "goal_object_only", "Goal for the object"], ["extruder", "Extruder", "filling a mould with a clay extruder", "goal_object_only", "Goal for the object"], ["packet", "Packet", "opening a snack packet", "goal_infilling", "Goal"]],
+    action100m: [["glass", "Glass", "reaching for a glass and lifting it"], ["brush", "Brush", "brushing oil around a bowl"], ["book", "Book", "showing a book"], ["foamstrip", "Foam strip", "folding a foam strip"], ["glass", "Glass", "picking up a glass", "hand_to_object", "Hands &rarr; object"], ["box", "Box", "holding up a box", "hand_to_object", "Hands &rarr; object"], ["tub", "Tub", "lifting a tub out of a box", "hand_to_object", "Hands &rarr; object"], ["bowl", "Bowl", "lifting and tilting a bowl", "object_to_hand", "Object &rarr; hands"], ["container", "Container", "pouring powder from a container", "object_to_hand", "Object &rarr; hands"], ["plantain", "Plantain", "lifting a plantain", "temporal_infilling", "Infill"], ["extruder", "Extruder", "filling a mold with a clay extruder", "goal_object_only", "Goal for the object"], ["packet", "Packet", "opening a snack packet", "goal_infilling", "Goal"]],
     mocap: [["072", "Spatula", "HO-Cap"], ["096", "Cup", "TACO · emptying a cup into a kettle"], ["094", "Spatula", "TACO · stir-frying in a pan"], ["099", "Brush", "TACO · brushing a kettle"], ["100", "Spoon", "TACO · scraping a pan"], ["091", "Spoon", "TACO · skimming a plate"], ["093", "Skimmer", "TACO · skimming a plate"], ["078", "Box", "DexYCB · picking up a box"]],
   };
   let gsrc = "action100m", gmode = "ghost";
@@ -876,7 +922,7 @@
     gg.querySelectorAll("video").forEach(v => { vis.unobserve(v); v.pause(); });
     gg.innerHTML = "";
     // an entry is [id, name, what] for a forecast (One future / Three futures) or [id, name, what, task, task label] for a
-    // clip of another task (video_v2: the clip, given in white, predicted in colour; the view switch does not apply)
+    // clip of another task (video_v2: the clip, given in white, predicted in color; the view switch does not apply)
     GAL[gsrc].forEach(([id, obj, what, task, tname]) => {
       const f = task ? V + "video_v2/" + gsrc + "_" + task + "_" + id : V + (gmode === "ghost" ? "freeze_ghost_v2/" : "freeze_seq_v2/") + gsrc + "_future_prediction_" + id;
       const meta = task ? tname : "Forecast &middot; " + (gmode === "ghost" ? "1 future" : "3 futures");

@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Grasping the Future · 3D stage</title>
+<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" href="favicon.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -118,7 +121,6 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 const CLIPS = [
   { key: "action100m_future_prediction_spoon", name: "Spoon", tag: "Forecast", what: "<b>Forecast</b> &middot; internet video &middot; scraping meat from a bowl into a pot" },
   { key: "action100m_temporal_infilling_aloe", name: "Aloe leaf", tag: "Infill", what: "<b>Infill</b> &middot; internet video &middot; lowering an aloe leaf to peel it" },
-  { key: "mocap_future_prediction_092", name: "Bowl", tag: "Forecast", what: "<b>Forecast</b> &middot; motion capture &middot; skimming with a bowl" },
   { key: "action100m_object_to_hand_057", name: "Cup", tag: "Object &rarr; hands", what: "<b>Object &rarr; hands</b> &middot; internet video &middot; pouring from a measuring cup" },
   { key: "action100m_future_prediction_glassbowl", name: "Glass bowl", tag: "Forecast", what: "<b>Forecast</b> &middot; internet video &middot; holding up a glass bowl" },
   { key: "action100m_goal_infilling_lentils", name: "Lentils", tag: "Goal", what: "<b>Goal</b> &middot; internet video &middot; pouring lentils into a cooker" },
@@ -430,7 +432,7 @@ function clearGhosts() { if (!cur) return; while (cur.ghosts.children.length) { 
 function updateTicker() {
   if (!cur) return; const c = CLIPS.find(c => c.key === cur.key), m = cur.meta;
   const what = c ? c.what : `<b>${m.task.replace(/_/g, " ")}</b> &middot; ${m.skill}`;
-  $("#ticker").innerHTML = m.mode === "video" ? `${what} &middot; given in white, predicted in colour` : `${what} &middot; the model saw ${m.observed_s.toFixed(1)} s &middot; future ${fut + 1} of ${cur.futures.length}, sampled from 20`;
+  $("#ticker").innerHTML = m.mode === "video" ? `${what} &middot; given in white, predicted in color` : `${what} &middot; the model saw ${m.observed_s.toFixed(1)} s &middot; future ${fut + 1} of ${cur.futures.length}, sampled from 20`;
 }
 
 // ------------------------------------------------------------------ the clip's own timeline (standalone page) and the bar
@@ -550,7 +552,8 @@ renderer.domElement.addEventListener("wheel", () => { if (view !== "orbit") setV
 function sway(dt) {
   swayT += dt;
   const off = cur.home.clone().sub(cur.target), r = off.length();
-  const az = THREE.MathUtils.degToRad(15) * Math.sin(swayT * 0.36), el = THREE.MathUtils.degToRad(5) * Math.sin(swayT * 0.25);
+  const k = cur.meta.sway || 1;  // deep scenes sway less (export_web3d.py: meta.sway), so no wide gap opens next to the person
+  const az = THREE.MathUtils.degToRad(15 * k) * Math.sin(swayT * 0.36), el = THREE.MathUtils.degToRad(5 * k) * Math.sin(swayT * 0.25);
   const sph = new THREE.Spherical().setFromVector3(off); sph.theta += az; sph.phi = Math.min(Math.PI - 0.05, Math.max(0.05, sph.phi - el)); sph.radius = r * (1 - 0.04 * (1 - Math.cos(swayT * 0.36)));
   camera.position.copy(cur.target).add(new THREE.Vector3().setFromSpherical(sph)); camera.lookAt(cur.target);
 }
