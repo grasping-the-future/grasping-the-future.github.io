@@ -1,4 +1,5 @@
-/* Model explainer: the token grid, the mask, noise, ten flow steps, decoded futures, other tasks.
+/* Model explainer: the token grid, the mask, noise, ten flow steps, decoded futures, other tasks (each with its decoded motion;
+   a click on a task holds the explainer on it).
    A schematic (the curves are drawn, not model outputs). Mounts into #mx; window.__mx.seek(t) renders time t (teaser capture). */
 (function () {
   const root = document.getElementById("mx");
@@ -77,8 +78,11 @@
   const att = [];
   for (let a = 0; a < 5; a++) for (let b = 0; b < 8; b++) att.push(el("rect", { x: MX + 27 + b * 12.4, y: MY + 66 + a * 12.4, width: 9, height: 9, rx: 2, fill: "#3a4329" }, svg));
   const stepTxt = el("text", { x: MX + MW / 2, y: MY + MH + 26, class: "mx-step", "text-anchor": "middle" }, svg);
-  const arrowBack = el("path", { d: `M ${MX + MW / 2} ${MY + MH + 36} C ${MX + MW / 2} ${GY + 330}, ${GX + 220} ${GY + 330}, ${GX + 220} ${rowY(2) + RH + 10}`, class: "mx-arrow", "marker-end": "url(#mxHead)" }, svg);
-  const backTxt = el("text", { x: MX - 120, y: GY + 322, class: "mx-lab", "text-anchor": "middle" }, svg); backTxt.textContent = "move the noise a step";
+  // back to the grid: down from the block, along under the grid, straight up into it (the last stretch is a straight line, so the
+  // head sits square on it; a single curve arrived at a slant under an upright head)
+  const BX0 = MX + MW / 2, BX1 = GX + 220, BYL = GY + 310, BR = 14;
+  const arrowBack = el("path", { d: `M ${BX0} ${MY + MH + 36} V ${BYL - BR} Q ${BX0} ${BYL} ${BX0 - BR} ${BYL} H ${BX1 + BR} Q ${BX1} ${BYL} ${BX1} ${BYL - BR} V ${rowY(2) + RH + 10}`, class: "mx-arrow", "marker-end": "url(#mxHead)" }, svg);
+  const backTxt = el("text", { x: (BX0 + BX1) / 2, y: BYL - 8, class: "mx-lab", "text-anchor": "middle" }, svg); backTxt.textContent = "move the noise a step";
   const inTxt = el("text", { x: (GX + COLS * (CW + CG) + MX) / 2, y: MY + 40, class: "mx-lab", "text-anchor": "middle" }, svg); inTxt.textContent = "grid";
   // futures panel
   const PX = 790, PY = 52, PW = 190, PH = 300;
@@ -91,6 +95,7 @@
   const gObj = el("circle", { r: 8, fill: C.O, stroke: "#fff", "stroke-width": 2, opacity: 0 }, svg), gR = el("circle", { r: 5.5, fill: C.R, stroke: "#fff", "stroke-width": 1.5, opacity: 0 }, svg), gL = el("circle", { r: 5.5, fill: C.L, stroke: "#fff", "stroke-width": 1.5, opacity: 0 }, svg);
   const futLab = el("text", { x: PX + PW - 14, y: PY + PH - 14, class: "mx-lab", "text-anchor": "end" }, svg);
   // ---------------------------------------------------------------- timeline
+  const TD = 3.2;  // seconds per task in the last step: the ten steps (first 55%), then its decoded motion
   const STEPS = [
     { d: 3.0, cap: "A clip becomes a grid: one row for each hand and the object, one column for each moment." },
     { d: 3.0, cap: "The task decides which cells the model gets. For a forecast, that is the first half second." },
@@ -98,7 +103,7 @@
     { d: 5.4, cap: "At each step the transformer predicts which way to move the noise. Ten steps turn it into motion." },
     { d: 3.4, cap: "The finished grid is decoded into motion of both hands and the object." },
     { d: 5.0, cap: "Start again from new noise and you get a different future. The model draws 20." },
-    { d: 6 * 1.9, cap: "Change which cells are given, and the same model answers a different question." },
+    { d: 6 * TD, cap: "Change which cells are given, and the same model answers a different question." },
   ];
   const starts = []; let tot = 0; STEPS.forEach(s => { starts.push(tot); tot += s.d; });
   const ease = x => x < 0 ? 0 : x > 1 ? 1 : x * x * (3 - 2 * x);
@@ -121,7 +126,7 @@
     if (s === 3) { maskOn = 1; showNoise = 1; const uu = Math.min(1, u * 1.06); tau = stepped(uu, 10); stepK = Math.min(10, Math.floor(uu * 10 + 1e-6)); pulse = (uu * 10) % 1; }
     if (s === 4) { maskOn = 1; showNoise = 1; tau = 1; decode = ease(u * 1.3); futShown = 1; stepK = 10; }
     if (s === 5) { maskOn = 1; showNoise = 1; const k = Math.min(1, Math.floor(u * 2)); fut = 1 + k; const uu = Math.min(1, (u * 2 - k) * 1.5); tau = stepped(uu, 10); stepK = Math.round(tau * 10); pulse = (uu * 10) % 1; decode = 1; futShown = 1 + k + (uu >= 1 ? 1 : 0); }
-    if (s === 6) { maskOn = 1; showNoise = 1; const k = Math.min(5, Math.floor(u * 6)); task = 1 + k; const uu = Math.min(1, (u * 6 - k) * 1.6); tau = stepped(uu, 10); stepK = Math.round(tau * 10); pulse = (uu * 10) % 1; decode = 0; futShown = 3; }
+    if (s === 6) { maskOn = 1; showNoise = 1; const k = Math.min(5, Math.floor(u * 6)), w = u * 6 - k; task = 1 + k; const uu = Math.min(1, w / 0.55); tau = stepped(uu, 10); stepK = Math.round(tau * 10); pulse = (uu * 10) % 1; decode = ease((w - 0.58) / 0.3); futShown = 1; }
     const path = FUT[fut], seed = s === 6 ? 50 + task : fut + 1;
     // cells and curves
     ROWS.forEach((r, i) => {
@@ -156,21 +161,23 @@
     att.forEach((a, k) => { const on = active && rng(k * 7 + Math.floor(pulse * 4) + 13 * stepK)() > 0.55; a.setAttribute("fill", on ? "#9fb85a" : "#3a4329"); });
     stepTxt.textContent = stepK >= 0 && s >= 3 ? `step ${Math.max(stepK, 0)} of 10` : "";
     [arrowIn, arrowBack, backTxt, inTxt].forEach(e => e.style.opacity = s >= 3 ? (active ? 1 : 0.35) : 0.15);
-    arrowOut.style.opacity = s >= 4 ? 1 : 0.15;
+    arrowOut.style.opacity = (s === 6 ? decode > 0 : s >= 4) ? 1 : 0.15;
     // decoded futures
     obsPath.setAttribute("d", pathD(FUT[0].O.slice(0, 2)));
-    obsPath.style.opacity = s >= 4 && s < 6 ? 1 : 0;
+    // (in the last step each task's finished grid is decoded too: what the task was given is drawn dark, what it filled in, in color)
+    const taskOut = s === 6 && decode > 0;
+    obsPath.style.opacity = (s >= 4 && s < 6) || taskOut ? 1 : 0;
     fpaths.forEach((fp, f) => {
-      const shown = s >= 4 && s < 6 && f < futShown;
-      const cut = f === fut && s === 4 ? decode : 1;
+      const shown = (s >= 4 && s < 6 && f < futShown) || (taskOut && f === 0);
+      const cut = (f === fut && s === 4) || s === 6 ? decode : 1;
       const n = Math.max(2, Math.round(cut * (COLS - 1)) + 1);
-      ["O", "R", "L"].forEach(r => { fp[r].setAttribute("d", pathD(FUT[f][r].slice(1, n))); fp[r].style.opacity = shown ? (f === fut ? 1 : 0.35) * (r === "O" ? 1 : 0.8) : 0; });
+      ["O", "R", "L"].forEach(r => { fp[r].setAttribute("d", pathD(FUT[f][r].slice(1, n))); fp[r].setAttribute("stroke", s === 6 && TASKS[task].m[r] === "all" ? C.ink2 : C[r]); fp[r].style.opacity = shown ? (f === fut ? 1 : 0.35) * (r === "O" ? 1 : 0.8) : 0; });
     });
-    if (s === 4) {
-      const n = s === 4 ? decode * (COLS - 1) : COLS - 1, a = Math.floor(n), b = Math.min(COLS - 1, a + 1), w = n - a;
+    if (s === 4 || taskOut) {
+      const n = decode * (COLS - 1), a = Math.floor(n), b = Math.min(COLS - 1, a + 1), w = n - a;
       const at = rr => { const p = FUT[fut][rr][a], q = FUT[fut][rr][b]; return toP([p[0] + (q[0] - p[0]) * w, p[1] + (q[1] - p[1]) * w]); };
       [[gObj, "O"], [gR, "R"], [gL, "L"]].forEach(([g, rr]) => { const [x, y] = at(rr); g.setAttribute("cx", x); g.setAttribute("cy", y); g.style.opacity = 1; });
-      futLab.textContent = "future 1";
+      futLab.textContent = s === 4 ? "future 1" : "";
     } else { [gObj, gR, gL].forEach(g => g.style.opacity = 0); futLab.textContent = s === 5 ? `${Math.min(futShown, 3)} futures` : ""; }
     // captions + controls
     capN.textContent = `${s + 1} / ${STEPS.length}`;
@@ -180,9 +187,10 @@
     tasksEl.querySelectorAll("button").forEach((b, k) => b.setAttribute("aria-pressed", (s === 6 ? k === task : k === 0) ? "true" : "false"));
   }
   const capN = root.querySelector("#mxN"), capT = root.querySelector("#mxT"), dotsEl = root.querySelector("#mxDots"), tasksEl = root.querySelector("#mxTasks"), playB = root.querySelector("#mxPlay");
-  let clock = 0, playing = !window.matchMedia("(prefers-reduced-motion: reduce)").matches, seen = false, last = null;
-  STEPS.forEach((st, k) => { const b = document.createElement("button"); b.setAttribute("aria-label", `Step ${k + 1}`); b.addEventListener("click", () => { clock = starts[k] + 0.001; draw(clock); }); dotsEl.appendChild(b); });
-  TASKS.forEach((tk, k) => { const b = document.createElement("button"); b.textContent = tk.name; b.addEventListener("click", () => { clock = k === 0 ? starts[3] : starts[6] + (k - 1) * 1.9 + 0.001; playing = true; setPlay(); draw(clock); }); tasksEl.appendChild(b); });
+  // hold = [from, to]: a click on a task keeps the explainer on that task (it replays that stretch) until a step is picked
+  let clock = 0, playing = !window.matchMedia("(prefers-reduced-motion: reduce)").matches, seen = false, last = null, hold = null;
+  STEPS.forEach((st, k) => { const b = document.createElement("button"); b.setAttribute("aria-label", `Step ${k + 1}`); b.addEventListener("click", () => { hold = null; clock = starts[k] + 0.001; draw(clock); }); dotsEl.appendChild(b); });
+  TASKS.forEach((tk, k) => { const b = document.createElement("button"); b.textContent = tk.name; b.addEventListener("click", () => { hold = k === 0 ? [starts[2], starts[6] - 0.001] : [starts[6] + (k - 1) * TD + 0.001, starts[6] + k * TD - 0.001]; clock = hold[0]; playing = true; setPlay(); draw(clock); }); tasksEl.appendChild(b); });
   function setPlay() { playB.setAttribute("aria-label", playing ? "Pause" : "Play"); playB.querySelector("svg").innerHTML = playing ? '<rect x="1.5" y="1" width="3" height="10" rx="1"/><rect x="7.5" y="1" width="3" height="10" rx="1"/>' : '<path d="M2 1 L11 6 L2 11 Z"/>'; }
   playB.addEventListener("click", () => { playing = !playing; setPlay(); });
   setPlay();
@@ -191,10 +199,10 @@
   function tick(ts) {
     if (last === null) last = ts;
     const dt = Math.min(0.1, (ts - last) / 1000); last = ts;
-    if (playing && seen && !capture) { clock += dt; draw(clock); }
+    if (playing && seen && !capture) { clock += dt; if (hold && (clock >= hold[1] || clock < hold[0])) clock = hold[0]; draw(clock); }
     requestAnimationFrame(tick);
   }
   draw(playing ? 0 : starts[4] + STEPS[4].d * 0.99);
   requestAnimationFrame(tick);
-  window.__mx = { seek: t => { clock = t; draw(t); return true; }, duration: tot, steps: STEPS.map((s, k) => ({ start: starts[k], d: s.d })) };
+  window.__mx = { seek: t => { clock = t; draw(t); return true; }, clock: () => clock, duration: tot, steps: STEPS.map((s, k) => ({ start: starts[k], d: s.d })) };
 })();
